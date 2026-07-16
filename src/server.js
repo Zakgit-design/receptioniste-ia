@@ -41,6 +41,20 @@ app.post('/webhooks/vapi-tools', async (req, res) => {
   res.status(200).json({ results });
 });
 
+// Ping périodique de notre propre URL publique pour éviter la mise en veille
+// du plan gratuit Render (qui endort le service après ~15 min sans requête
+// entrante) — un service endormi fait échouer l'appel SMS pendant un vrai
+// appel (délai d'attente Vapi dépassé pendant le redémarrage à froid).
+// N'agit que si PUBLIC_URL est configuré (donc jamais en développement local).
+const PUBLIC_URL = process.env.PUBLIC_URL;
+const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
+
+if (PUBLIC_URL) {
+  setInterval(() => {
+    fetch(`${PUBLIC_URL}/health`).catch(() => {});
+  }, KEEP_ALIVE_INTERVAL_MS);
+}
+
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
