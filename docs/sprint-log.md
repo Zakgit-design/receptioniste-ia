@@ -258,7 +258,15 @@ Vérifié : build, lint, 21 tests toujours au vert.
 **Sprint 5 officiellement clôturé le 2026-07-16.** Décision du fondateur : le branchement des appels réels Vapi/Twilio vers la table `Appels` (et la fin du mélange démo/réel sur Vue d'ensemble/Finances/Santé plateforme) est volontairement différé à une tâche dédiée après le Sprint 6, pour ne pas interrompre la construction du Dashboard Client.
 
 ## Sprint 6 — Dashboard Client
-Statut : pas commencé, dépend du Sprint 5.
+Statut : conception terminée le 2026-07-16 (`docs/sprint6-conception.md`), prêt pour le développement (tâches #62-68 dans `docs/roadmap.md`).
+
+**Conception produite le 2026-07-16**, même méthode que le Sprint 5 : arborescence des écrans (`/app/*`, nouveau groupe de routes, entreprise jamais en paramètre d'URL — toujours dérivée de la session côté serveur), permissions exactes des 4 rôles client (propriétaire/administrateur/responsable d'établissement/membre), composants réutilisés du Dashboard Administrateur, aucune donnée de démonstration introduite (contrairement au Sprint 5 — voir écart de périmètre ci-dessus).
+
+**Écart d'architecture trouvé pendant la conception (vérifié en base réelle) :** aucune des 2 entreprises existantes (Barber Concept, MS Savané — 0 ligne `utilisateurs` en base) n'est reliée à une Organisation Clerk, pourtant prévu dans `docs/architecture.md` depuis le Sprint 5. À corriger en premier (tâche #62) avant tout écran : liaison automatique à la création + rattrapage des 2 entreprises existantes.
+
+**Décision de conception (rôles) :** extension de l'enum `RoleUtilisateur` à 5 valeurs et création de 4 rôles personnalisés Clerk (`org:proprietaire`/`org:administrateur`/`org:responsable_etablissement`/`org:membre`) plutôt que de découpler nos rôles de Clerk — cohérent avec le principe déjà acté ("les rôles vivent dans Clerk, recopiés dans `utilisateurs.role`"). Nouvelle table `assignations_etablissement` pour scoper un responsable d'établissement à ses établissements assignés.
+
+**Action fondateur requise, non bloquante (même nature que les prérequis Postgres/Clerk précédents) :** créer les 4 rôles personnalisés dans Clerk (Dashboard → Organizations → Roles & Permissions).
 
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).

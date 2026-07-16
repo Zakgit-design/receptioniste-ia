@@ -135,18 +135,32 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 
 ## Sprint 6 — Dashboard Client
 
-**Objectif :** donner à chaque entreprise cliente (ex. Barber Concept) son propre espace, avec un rendu premium (niveau Stripe/Linear/Vercel/Notion).
-**Statut :** à venir, après le Dashboard Administrateur.
+**Objectif :** donner à chaque entreprise cliente (ex. Barber Concept) son propre espace, avec un rendu premium (niveau Stripe/Linear/Vercel/Notion), en réutilisant le design system et les composants du Dashboard Administrateur, sur la même base Supabase/Prisma, avec une isolation multi-tenant stricte (un utilisateur client ne voit jamais les données d'une autre entreprise).
+**Statut :** conception terminée le 2026-07-16 (voir `docs/sprint6-conception.md`) — prêt pour le développement.
 **Dépendances :** Sprint 5 (réutilise le même modèle de données et la même architecture frontend).
-**Critères de validation :** Henok doit avoir l'impression d'utiliser un logiciel premium dès l'ouverture.
+**Critères de validation :** Henok doit avoir l'impression d'utiliser un logiciel premium dès l'ouverture ; isolation multi-tenant vérifiée (un compte d'une entreprise ne peut jamais accéder aux données d'une autre).
 
-**Contenu prévu** (détail exact défini à l'issue de la phase de conception) :
-- appels du jour, appels manqués
-- rendez-vous créés
-- calendrier
-- statistiques et performance de l'IA
-- historique des conversations
-- paramètres de l'entreprise, gestion des horaires
+**Écart d'architecture trouvé pendant la conception, à corriger en premier :** aucune des 2 entreprises existantes en base (Barber Concept, MS Savané) n'est reliée à une Organisation Clerk (`clerk_organization_id` vide) — pourtant prévu depuis `docs/architecture.md`. Sans cette liaison, aucun utilisateur ne peut être invité sur une entreprise. Voir `docs/sprint6-conception.md`, section 0.1, pour le correctif (création automatique désormais + rattrapage des 2 entreprises existantes).
+
+**Action fondateur requise, non bloquante pour le code (même nature que les prérequis Postgres/Clerk des sprints précédents) :** créer 4 rôles personnalisés dans Clerk (Dashboard → Organizations → Roles & Permissions) — `org:proprietaire`, `org:administrateur`, `org:responsable_etablissement`, `org:membre` — voir `docs/sprint6-conception.md`, section 0.2.
+
+**Tâches, dans l'ordre de dépendance (voir justification complète dans `docs/sprint6-conception.md`, section 7) :**
+
+- [ ] 62. Prérequis : liaison Entreprise ↔ Organisation Clerk (création auto + backfill Barber Concept/MS Savané), migration du modèle de données (enum `role_utilisateur` étendu à 5 valeurs, table `assignations_etablissement`, colonnes de préférences de notification), squelette de route `(client)` sous `/app` avec garde de rôle (`proxy.ts`) et navigation dédiée
+- [ ] 63. Écran Établissements (lecture seule, scope par établissements assignés pour un responsable d'établissement)
+- [ ] 64. Écran Équipe et accès (liste des membres, invitations avec sélecteur des 4 rôles, retrait/changement de rôle selon permissions)
+- [ ] 65. Écran Paramètres (coordonnées, préférences de notification, abonnement actuel en lecture)
+- [ ] 66. Écran Vue d'ensemble (appels reçus, rendez-vous pris, taux de conversion, appels à traiter, activité récente, stats par établissement)
+- [ ] 67. Écran Appels (liste filtrée par entreprise/établissements assignés, drawer de détail réutilisé du Sprint 5)
+- [ ] 68. Écran Rendez-vous (créés par l'IA — établissement, service, collaborateur si disponible, statut ; pas de connexion Get Time à ce stade)
+
+**Contenu couvert par ces tâches, tel que cadré par le fondateur** :
+- Vue d'ensemble : appels du jour, appels manqués, rendez-vous créés, taux de conversion, appels nécessitant une attention, activité récente, statistiques par établissement
+- Appels : filtres par établissement/période/résultat/statut, drawer avec transcription/résumé/durée/RDV créé/SMS envoyé/erreurs
+- Rendez-vous : établissement, service, collaborateur, date/heure/client/statut
+- Établissements : liste, statistiques, numéro/assistant, état des intégrations
+- Équipe et accès : rôles propriétaire/administrateur/responsable d'établissement/membre, invitations directes uniquement
+- Paramètres : informations entreprise, coordonnées, préférences de notification, abonnement actuel (sans construire Stripe)
 - vue consolidée multi-établissements (6 salons Barber Concept) + filtre par salon + comparaison entre salons
 - emplacement prévu pour les futurs modules Get Time
 
