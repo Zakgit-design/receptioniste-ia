@@ -109,7 +109,7 @@ Statut : appliqué et testé (texte + assistant jetable), déployé en productio
 Sauvegarde avant modification : `docs/backups/vapi-assistant-before-endcall.json`.
 
 ## Sprint 4 — SMS de confirmation
-Statut : **clôturé, fonctionnel de bout en bout en production** — 2026-07-16. Le blocage d'hébergement (tâche roadmap #5) est levé, voir section dédiée ci-dessous.
+Statut : **clôturé, validé par un vrai appel téléphonique de bout en bout (réservation + SMS reçu)** — 2026-07-16. Le blocage d'hébergement (tâche roadmap #5) est levé ; un bug de mise en veille Render découvert lors du premier vrai appel a depuis été corrigé et revérifié (voir section dédiée ci-dessous).
 
 ### Déploiement backend (tâche roadmap #5) et branchement Vapi → SMS, 2026-07-16
 
@@ -133,6 +133,16 @@ Statut : **clôturé, fonctionnel de bout en bout en production** — 2026-07-16
   - Anti-double-envoi SMS toujours en mémoire (`Set` local au process Node) — repart à zéro si Render redémarre le service ; suffisant pour la démo, pas pour la production multi-clients.
   - Quelques rendez-vous de test supplémentaires restent dans le calendrier Google réel (Jean Testeur x2, Marie Dupont) — à nettoyer manuellement si besoin.
   - Validation faite en `/chat` (texte, avec vrais tool_calls) sur l'assistant de production ; un vrai appel téléphonique de bout en bout avec SMS reste à faire pour une validation orale complète (recommandé avant présentation finale).
+
+### Bug réel trouvé et corrigé lors du premier vrai appel téléphonique, 2026-07-16
+
+- **Premier appel réel du fondateur (08:33-08:36 UTC) :** réservation créée avec succès, mais **aucun SMS reçu**. Cause identifiée dans les logs Vapi/Render : l'outil `send_appointment_confirmation_sms` a échoué par timeout (`"Your server rejected tool-calls webhook. Error: timeout of 20000ms exceeded"`). Le backend Render (plan gratuit) s'était mis en veille par inactivité ; son redémarrage à froid (~16s, confirmé dans les logs Render) a dépassé le délai d'attente de 20s configuré côté Vapi. Les deux outils calendrier n'étaient pas concernés (ce sont des outils natifs Vapi qui ne passent pas par notre backend).
+- **Corrections apportées :**
+  1. Ping périodique (`setInterval`, 10 min) ajouté dans `src/server.js` vers `PUBLIC_URL/health`, actif uniquement si `PUBLIC_URL` est configuré (donc jamais en local) — empêche la mise en veille du service. Log `[keep-alive] ping ok` ajouté pour pouvoir vérifier en production que le ping se déclenche réellement.
+  2. Filet de sécurité : délai d'attente de l'outil Vapi `send_appointment_confirmation_sms` remonté de 20s à 40s (`PATCH /tool/{id}`, objet complet renvoyé pour éviter le bug de fusion partielle documenté plus haut).
+  3. Nouvelle variable d'environnement `PUBLIC_URL` ajoutée sur Render (`.env.example` mis à jour).
+- **Vérification rigoureuse, pas juste supposée :** un premier re-test juste après déploiement (SMS envoyé en 1,2s) ne prouvait rien, le service venait d'être relancé donc était forcément chaud — remarque à juste titre soulevée par le fondateur. Vérification correcte effectuée ensuite : surveillance des logs Render sur ~18 minutes sans aucune sollicitation externe, deux pings `[keep-alive]` observés à 10 minutes d'intervalle exact (09:24:31 et 09:34:30 UTC), confirmant que le mécanisme se déclenche seul. Un appel réel du fondateur passé juste après (09:35 UTC, ~31 min après le déploiement, bien au-delà du seuil de mise en veille de 15 min) a confirmé le correctif en conditions réelles : réservation créée (salon Jonction, Rabio Lavive, lundi 21 juillet 10h), SMS envoyé en 0,6s, livré (`SMb7b90dd45b0a4ebbe83fc6530d79f6fb`, statut `delivered`).
+- **Limite persistante, assumée pour l'instant :** le keep-alive réduit très fortement le risque mais n'élimine pas à 100% un cas de mise en veille (ex. redémarrage du service par Render lui-même, ou keep-alive momentanément en échec) — dans ce cas de figure résiduel, le filet de sécurité (40s) laisse une marge largement suffisante pour couvrir un redémarrage à froid isolé. Passage à un plan Render payant resterait la solution définitive si ce risque devenait inacceptable (non fait pour l'instant, coût récurrent non justifié à ce stade prototype).
 
 **Tout le reste de Sprint 4 (Twilio, `src/sms.js`, 8 tests obligatoires) était déjà fait — voir détail original ci-dessous.**
 
