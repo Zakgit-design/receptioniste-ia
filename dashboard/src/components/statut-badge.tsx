@@ -1,5 +1,5 @@
 import { cn } from "@/lib/utils";
-import type { StatutEntreprise } from "@/generated/prisma/enums";
+import type { StatutEntreprise, StatutAbonnement } from "@/generated/prisma/enums";
 
 // Badge générique (pastille + libellé) pour les statuts affichés dans les
 // écrans Entreprises — voir la maquette (docs/sprint5-conception.md,
@@ -55,3 +55,21 @@ export function toneForStatutEntreprise(statut: StatutEntreprise): ToneBadge {
       return "critical";
   }
 }
+
+/** Statut d'abonnement (`abonnements.statut`) -> tone de badge et libellé français. */
+export function toneForStatutAbonnement(statut: StatutAbonnement): ToneBadge {
+  switch (statut) {
+    case "actif":
+      return "good";
+    case "impaye":
+      return "warn";
+    case "resilie":
+      return "critical";
+  }
+}
+
+export const libelleStatutAbonnement: Record<StatutAbonnement, string> = {
+  actif: "Actif",
+  impaye: "Impayé",
+  resilie: "Résilié",
+};

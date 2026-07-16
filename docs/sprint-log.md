@@ -300,6 +300,16 @@ Trois nouvelles fonctions Clerk dans `src/auth/index.ts` : `changerRoleMembre`, 
 
 Vérifié : build, lint, 27 tests au vert (21 précédents + 6 nouveaux sur `equipe-permissions.ts`). **Reste à vérifier par le fondateur**, une fois une vraie invitation acceptée : rendu réel dans le navigateur, invitation avec les 4 rôles personnalisés Clerk, changement de rôle/retrait/révocation d'invitation en conditions réelles, réception effective de l'événement `organizationMembership.deleted` par le webhook.
 
+### Tâche #65 — Écran Paramètres (2026-07-16, même journée)
+
+`/app/parametres` : trois panneaux — coordonnées de l'entreprise (nom, secteur, email et téléphone de contact) modifiables via un formulaire, préférences de notification (deux interrupteurs `notifierRdvParEmail`/`notifierRdvParSms`, persistés immédiatement à chaque bascule, avec un texte honnête précisant qu'aucun moteur de notification n'existe encore pour les déclencher), abonnement actuel en lecture seule (plan, prix, cycle, statut, fin de période). Aucune donnée de démonstration.
+
+Nouveau composant `src/components/ui/switch.tsx` (primitive Radix, déjà disponible via le paquet `radix-ui` installé — même façon de faire que `ui/select.tsx`/`ui/label.tsx`), pour les deux interrupteurs de notification.
+
+**Permissions — défense en profondeur :** comme pour Équipe et accès, la garde de page (propriétaire/administrateur) est revérifiée dans les deux Server Actions (`src/app/(client)/app/parametres/actions.ts`), pas seulement dans `page.tsx`.
+
+Vérifié directement contre la vraie base (pas de session Clerk réelle disponible) : lecture/écriture des coordonnées et des préférences de notification sur Barber Concept, valeurs restaurées après coup ; création puis lecture d'un abonnement de test (plan "Standard", 149 CHF/mensuel, actif, échéance) confirmant le format d'affichage, puis suppression pour laisser Barber Concept sans abonnement (état réel actuel — l'écran affiche donc "Aucun abonnement actif"). Build, lint, 27 tests au vert. **Reste à vérifier par le fondateur** : rendu réel dans le navigateur.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
