@@ -96,3 +96,15 @@ Source de vérité du périmètre. Toute tâche non listée ici est hors scope d
 - [ ] 44. Faire un premier test complet filmé
 - [ ] 45. Corriger les derniers problèmes identifiés
 - [ ] 46. Refaire un second test complet sans accroc
+
+## Après le MVP 1 — vers la version production (hors périmètre démo)
+
+Cette section n'est pas un sprint du MVP 1 : elle documente une décision d'architecture déjà actée (voir `docs/architecture.md`, section « Décision d'architecture — Hébergement ») pour ne pas la perdre de vue, mais son exécution est déclenchée par l'arrivée des premiers clients payants, pas par l'avancement des sprints ci-dessus.
+
+**Déclencheur :** premier client payant (au-delà de la démo pilote Barber Concept).
+
+- [ ] 47. Migrer le backend vers une infrastructure toujours active (Render Starter ou hébergeur équivalent) — objectifs : aucune mise en veille, aucune latence au premier appel, disponibilité 24h/24, fiable pour plusieurs entreprises simultanément.
+- [ ] 48. Supprimer le mécanisme de keep-alive (`src/server.js`) devenu inutile une fois l'infrastructure toujours active en place.
+- [ ] 49. Revalider par un vrai appel de bout en bout (réservation + SMS) que la migration n'a rien cassé.
+
+Rappel valable pour toute tâche ajoutée après le MVP 1 : penser l'architecture pour des dizaines puis des centaines d'entreprises, jamais seulement pour Barber Concept (voir `docs/architecture.md`).
