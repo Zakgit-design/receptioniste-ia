@@ -51,7 +51,9 @@ const KEEP_ALIVE_INTERVAL_MS = 10 * 60 * 1000;
 
 if (PUBLIC_URL) {
   setInterval(() => {
-    fetch(`${PUBLIC_URL}/health`).catch(() => {});
+    fetch(`${PUBLIC_URL}/health`)
+      .then(() => console.log('[keep-alive] ping ok'))
+      .catch((err) => console.log('[keep-alive] ping échoué:', err.message));
   }, KEEP_ALIVE_INTERVAL_MS);
 }
 
