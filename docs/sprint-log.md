@@ -278,6 +278,14 @@ Migration Prisma appliquée sur la vraie base Supabase (`role_utilisateur` éten
 
 Vérifié : build, lint, 21 tests toujours au vert ; requête non authentifiée vers `/app` redirige bien vers `/sign-in`.
 
+### Tâche #63 — Écran Établissements (2026-07-16, même journée)
+
+`/app/etablissements`, lecture seule, aucune donnée de démonstration (toutes les requêtes lisent la vraie base, scopées sur l'entreprise réelle de l'utilisateur connecté). Pièce centrale : `getEtablissementIdsAutorises` (`src/lib/scope-client.ts`), la fonction de scope partagée annoncée dans `docs/sprint6-conception.md` — prend toujours l'utilisateur courant en entrée, jamais un id d'URL ; retourne tous les établissements de l'entreprise pour propriétaire/administrateur/membre, seulement les établissements assignés (table `assignations_etablissement`) pour un responsable d'établissement. Réutilisée telle quelle par les tâches suivantes (Appels, Rendez-vous, Vue d'ensemble).
+
+Chaque carte affiche numéro/assistant IA (`AgentIA`), appels des 7 derniers jours, statut de l'intégration Google Calendar. Choix technique : composant dédié (`etablissements-liste-client.tsx`) plutôt que réutilisation du tableau admin (`etablissements-table.tsx`, qui n'affiche pas ces statistiques) — le tableau admin n'a pas été modifié. Point de modélisation à garder en tête : l'intégration Google Calendar est stockée par entreprise (une seule connexion partagée), pas par établissement.
+
+Vérifié contre la vraie base (données de test créées puis nettoyées, Barber Concept revenu à 0 établissement) : statistiques correctes, scope responsable d'établissement confirmé (ne voit que son établissement assigné), scope propriétaire confirmé (voit tout), cas sans entreprise/utilisateur renvoie bien une liste vide. Build, lint, 21 tests au vert. **Reste à vérifier par le fondateur** : rendu réel dans le navigateur — impossible avant qu'une invitation existe (tâche #64).
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
