@@ -12,7 +12,7 @@ Source de vérité du périmètre. Toute tâche non listée ici est hors scope d
 - [ ] 2. Réserver un numéro de téléphone de test
 - [ ] 3. Créer un compte Vapi
 - [ ] 4. Créer un compte Anthropic (API Claude) et générer une clé API
-- [ ] 5. Créer un compte d'hébergement (Render ou Railway)
+- [x] 5. Créer un compte d'hébergement (Render ou Railway)
 - [x] 6. Initialiser le projet de code (dossier + dépôt Git vide)
 - [ ] 7. Connecter le numéro Twilio à Vapi (sans logique encore)
 - [ ] 8. Appeler le numéro et vérifier qu'un message automatique par défaut répond
@@ -65,11 +65,11 @@ Source de vérité du périmètre. Toute tâche non listée ici est hors scope d
 **Dépendances :** Sprint 3.
 **Critères de validation :** SMS reçu en moins de 30 secondes, contenu correct.
 
-- [ ] 30. Activer l'envoi de SMS sur le compte Twilio
-- [ ] 31. Écrire le modèle du message de confirmation
-- [ ] 32. Construire la fonction qui déclenche le SMS après création du RDV
-- [ ] 33. Tester la réception du SMS après un appel
-- [ ] 34. Ajuster la formulation si besoin
+- [x] 30. Activer l'envoi de SMS sur le compte Twilio
+- [x] 31. Écrire le modèle du message de confirmation
+- [x] 32. Construire la fonction qui déclenche le SMS après création du RDV
+- [x] 33. Tester la réception du SMS après un appel (validé en `/chat` avec exécution réelle des outils ; un vrai appel téléphonique reste recommandé avant la démo finale)
+- [x] 34. Ajuster la formulation si besoin (aucun ajustement nécessaire, formulation déjà validée)
 
 ## Sprint 5 — Transfert vers un humain
 **Objectif :** l'agent transfère l'appel à un vrai numéro si nécessaire.

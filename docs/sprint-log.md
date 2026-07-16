@@ -109,7 +109,32 @@ Statut : appliqué et testé (texte + assistant jetable), déployé en productio
 Sauvegarde avant modification : `docs/backups/vapi-assistant-before-endcall.json`.
 
 ## Sprint 4 — SMS de confirmation
-Statut : backend et Twilio entièrement prêts et testés (8/8 tests). **Bloqué pour le branchement dans un vrai appel** — pas par Twilio, mais par l'hébergement (tâche roadmap #5). Voir détail ci-dessous.
+Statut : **clôturé, fonctionnel de bout en bout en production** — 2026-07-16. Le blocage d'hébergement (tâche roadmap #5) est levé, voir section dédiée ci-dessous.
+
+### Déploiement backend (tâche roadmap #5) et branchement Vapi → SMS, 2026-07-16
+
+- **Dépôt GitHub créé** par le fondateur (`Zakgit-design/receptioniste-ia`, rendu public — nécessaire pour que Render y accède sans installation d'app OAuth ; aucun secret dans l'historique Git, vérifié avant coup). Code poussé sur `main`.
+- **Compte Render créé par le fondateur**, clé API générée et transmise (stockée uniquement dans `.env`, jamais commitée — `RENDER_API_KEY` ajouté à `.env` et `.env.example`).
+- **Service web créé via l'API Render** (pas de config manuelle dashboard) : `receptionniste-ia` (id `srv-d9c8n37lk1mc739emq50`), région Frankfurt, plan free, build `npm install`, start `npm start`, `healthCheckPath: /health`. URL publique : `https://receptionniste-ia-x9bo.onrender.com`.
+- **9 variables d'environnement configurées via l'API Render** (tous les secrets de `.env.example` sauf `PORT`, géré par Render, et `RENDER_API_KEY`, inutile côté service).
+- **`GET /health` vérifié publiquement** : 200 « ok » depuis l'extérieur.
+- **Outil Vapi personnalisé créé** : `send_appointment_confirmation_sms` (type `function`, id `2506cdcb-cbbd-48f9-9002-d56933c3e65f`), pointant vers `POST /webhooks/vapi-tools` du backend Render, header `x-vapi-secret` (secret partagé `VAPI_SERVER_SECRET`, déjà présent côté serveur depuis Sprint 4 initial). Attaché à l'assistant de production via `toolIds` (en plus des outils calendrier et `endCall` existants).
+- **Nouvelle section dans `src/prompts/system-prompt.md`** (étape 8 de « Réservations ») : appeler `send_appointment_confirmation_sms` uniquement après succès réel de la création du rendez-vous, une seule fois, avec l'identifiant de l'événement Google Calendar comme `appointmentId` (anti-double-envoi).
+- **Bug trouvé et corrigé n°1 :** filler par défaut de Vapi en anglais (« Give me a moment ») avant le résultat de l'outil SMS — même famille de bug que le filler « Goodbye » corrigé sur `endCall` en Sprint 3. Corrigé en configurant `messages: [{type: "request-start", blocking: false}]` sur l'outil.
+- **Bug trouvé et corrigé n°2 (le plus important) :** ce correctif du filler, envoyé seul via `PATCH /tool/{id}`, a fait disparaître silencieusement le champ `server` de l'outil (même défaut de fusion partielle que celui documenté au Sprint 3 pour `PATCH /assistant` — confirmé ici valable aussi pour `PATCH /tool`). Conséquence : l'appel suivant a échoué avec « No result returned » côté Vapi, sans qu'aucune requête n'atteigne notre backend (vérifié dans les logs Render — aucune trace de l'appel). Corrigé en renvoyant `messages` et `server` ensemble dans le même `PATCH`. **Leçon retenue, à généraliser : ne jamais faire de `PATCH` partiel sur une ressource Vapi (assistant ou tool) sans relire l'objet complet après coup pour vérifier qu'aucun champ n'a disparu.**
+- **Tests effectués (`/chat`, historique réaliste avec vrais `tool_calls`, comme lors d'un appel réel) :**
+  1. Assistant jetable, avant correctif filler : réservation complète → événement Google Calendar réel créé → SMS réel envoyé et livré (`SM3eb36b53d3e1b29d9cf5c4cc66f57400`), mais filler anglais entendu.
+  2. Assistant jetable, après correctif filler seul (bug `server` disparu, non détecté immédiatement) : événement créé, mais SMS jamais envoyé (« No result returned »).
+  3. Assistant jetable, après correctif complet (`messages` + `server` ensemble) : réservation complète, plus de filler anglais, SMS réel envoyé et livré (`SM8f636238dcb41edbf4f1c1d7d3e1276e`).
+  4. **Assistant de production**, scénario complet incluant un créneau occupé → alternative proposée → créneau accepté → récapitulatif → confirmation → création réelle de l'événement (« Shampoing — Marie Dupont — Jonction ») → SMS envoyé automatiquement → raccrochage automatique correct après la formule de politesse. SMS revérifié directement via l'API Twilio : statut `delivered`, expéditeur `BARBERCONC` (jamais le numéro vocal).
+- **Sauvegarde avant modification :** `docs/backups/vapi-assistant-before-sms-webhook.json`.
+- **Limites/risques restants :**
+  - Render plan gratuit : le service peut se mettre en veille après une longue période d'inactivité et mettre quelques dizaines de secondes à redémarrer au prochain appel — acceptable pour une démo, à surveiller si ça devient gênant en présentation (upgrade payant possible plus tard).
+  - Anti-double-envoi SMS toujours en mémoire (`Set` local au process Node) — repart à zéro si Render redémarre le service ; suffisant pour la démo, pas pour la production multi-clients.
+  - Quelques rendez-vous de test supplémentaires restent dans le calendrier Google réel (Jean Testeur x2, Marie Dupont) — à nettoyer manuellement si besoin.
+  - Validation faite en `/chat` (texte, avec vrais tool_calls) sur l'assistant de production ; un vrai appel téléphonique de bout en bout avec SMS reste à faire pour une validation orale complète (recommandé avant présentation finale).
+
+**Tout le reste de Sprint 4 (Twilio, `src/sms.js`, 8 tests obligatoires) était déjà fait — voir détail original ci-dessous.**
 
 - **Côté Twilio, tout fait via l'API, aucune action humaine nécessaire (contrairement à l'attente initiale) :**
   - Vérifié dans la doc officielle Twilio : Alphanumeric Sender ID en Suisse ne nécessite **pas** de pré-enregistrement (support "dynamique"), contrairement à d'autres pays.
@@ -130,10 +155,10 @@ Statut : backend et Twilio entièrement prêts et testés (8/8 tests). **Bloqué
   7. Double appel avec le même `appointmentId` → 2e appel `skipped / already_sent`, un seul SMS réellement envoyé.
   8. Séquencement vérifié : la fonction SMS n'est invoquée par le contrôleur que si la création Calendar renvoie un statut de succès.
 
-- **Blocage réel découvert, pas côté Twilio mais côté Vapi :** testé sur un assistant jetable (créé puis supprimé, aucun impact production) — l'outil natif Vapi `sms` refuse tout expéditeur qui n'est pas un numéro de téléphone déjà importé dans Vapi (`"Sender phone number (BARBERCONC) configuration not found"`). L'outil natif ne peut donc pas utiliser un Alphanumeric Sender ID Twilio. Pour respecter la contrainte du fondateur (jamais le numéro 022 comme expéditeur, toujours l'Alphanumeric Sender ID), il faut appeler notre propre fonction `sendAppointmentConfirmationSms` depuis un vrai backend accessible publiquement (webhook Vapi après succès de la création Calendar) — **bloqué par la tâche roadmap #5 (hébergement)**, toujours pas faite.
-- **Assistant de production non touché durant tout ce sprint**, conformément à la consigne.
+- **Blocage réel découvert, pas côté Twilio mais côté Vapi :** testé sur un assistant jetable (créé puis supprimé, aucun impact production) — l'outil natif Vapi `sms` refuse tout expéditeur qui n'est pas un numéro de téléphone déjà importé dans Vapi (`"Sender phone number (BARBERCONC) configuration not found"`). L'outil natif ne peut donc pas utiliser un Alphanumeric Sender ID Twilio. Pour respecter la contrainte du fondateur (jamais le numéro 022 comme expéditeur, toujours l'Alphanumeric Sender ID), il faut appeler notre propre fonction `sendAppointmentConfirmationSms` depuis un vrai backend accessible publiquement (webhook Vapi après succès de la création Calendar) — **bloqué par la tâche roadmap #5 (hébergement)**, toujours pas faite à ce stade.
+- **Assistant de production non touché durant cette partie du sprint**, conformément à la consigne. (Le blocage d'hébergement a été levé et l'assistant de production a bien été modifié le 2026-07-16, une fois le backend déployé — voir section « Déploiement backend » plus haut.)
 
-Sauvegardes : aucune modification de l'assistant Vapi n'a eu lieu (uniquement des tests sur assistant jetable, supprimé après usage).
+Sauvegardes de cette partie : aucune modification de l'assistant Vapi n'a eu lieu (uniquement des tests sur assistant jetable, supprimé après usage). Voir plus haut pour la sauvegarde liée au déploiement (`vapi-assistant-before-sms-webhook.json`).
 
 ## Sprint 5 — Transfert humain
 Statut : pas commencé
