@@ -7,7 +7,7 @@ export const navGroupsClient: NavGroup[] = [
   {
     label: "Mon entreprise",
     items: [
-      { href: "/app", label: "Vue d'ensemble", icon: "LayoutDashboard" },
+      { href: "/app", label: "Vue d'ensemble", icon: "LayoutDashboard", exact: true },
       { href: "/app/appels", label: "Appels", icon: "Phone" },
       { href: "/app/rendez-vous", label: "Rendez-vous", icon: "CalendarClock" },
       { href: "/app/etablissements", label: "Établissements", icon: "Building2" },

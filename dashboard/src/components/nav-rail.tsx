@@ -74,11 +74,11 @@ export function NavRail({
             </div>
             <div className="flex flex-col gap-px">
               {group.items.map((item) => {
-                // "/" doit être actif seulement sur la page exacte, les autres sur leurs sous-routes.
-                const isActive =
-                  item.href === "/"
-                    ? pathname === "/"
-                    : pathname === item.href || pathname.startsWith(`${item.href}/`);
+                // Item "racine" (`exact: true`) actif seulement sur la page exacte,
+                // les autres sur leurs sous-routes aussi (voir src/lib/nav.ts).
+                const isActive = item.exact
+                  ? pathname === item.href
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const Icon = icons[item.icon];
                 return (
                   <Link

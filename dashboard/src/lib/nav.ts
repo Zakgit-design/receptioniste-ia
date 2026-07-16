@@ -19,6 +19,14 @@ export type NavItem = {
   href: string;
   label: string;
   icon: NavIconName;
+  /**
+   * Actif seulement sur la page exacte, jamais sur ses sous-routes — pour
+   * l'item "racine" d'un dashboard ("/" pour l'admin, "/app" pour le client).
+   * Sans ça, `pathname.startsWith(item.href + "/")` matcherait toutes les
+   * sous-pages (ex. "/app/etablissements" commence bien par "/app/"), et cet
+   * item resterait affiché comme actif partout — bug trouvé le 2026-07-17.
+   */
+  exact?: boolean;
 };
 
 export type NavGroup = {
@@ -32,7 +40,7 @@ export const navGroups: NavGroup[] = [
   {
     label: "Plateforme",
     items: [
-      { href: "/", label: "Vue d'ensemble", icon: "LayoutDashboard" },
+      { href: "/", label: "Vue d'ensemble", icon: "LayoutDashboard", exact: true },
       { href: "/entreprises", label: "Entreprises", icon: "Building2" },
       { href: "/appels", label: "Appels", icon: "Phone" },
       { href: "/finances", label: "Finances", icon: "Wallet" },
