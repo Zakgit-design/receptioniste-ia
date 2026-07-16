@@ -2,6 +2,8 @@
 
 Version condensée pour le développement. Document stratégique complet disponible séparément (vision, business model) — ce fichier ne garde que ce qui sert à coder.
 
+**Pivot du 2026-07-16 :** le projet n'est plus seulement un prototype de démo pour Barber Concept — c'est désormais une plateforme SaaS B2B multi-entreprises, avec Barber Concept comme client pilote. Voir `docs/roadmap.md` pour le détail des sprints (le Dashboard Administrateur, Sprint 5, devient la priorité immédiate).
+
 ## Principe directeur : conçu pour plusieurs entreprises, pas seulement Barber Concept
 
 Barber Concept est le client pilote, pas la cible finale. La plateforme vise des dizaines puis des centaines d'entreprises (barbiers, restaurants, cabinets dentaires, cliniques, garages, etc.), chacune avec son propre agent IA, son propre numéro, son propre agenda.
@@ -24,7 +26,7 @@ Conséquence pour chaque décision technique : ne jamais optimiser uniquement po
                                                                   SMS (Twilio)
 ```
 
-## Stack (MVP 1 — prototype de démo)
+## Stack (téléphonie et voix — Sprints 1-4, terminés)
 
 | Couche | Techno | Rôle |
 |---|---|---|
@@ -33,9 +35,9 @@ Conséquence pour chaque décision technique : ne jamais optimiser uniquement po
 | Intelligence | Claude (API Anthropic) | Comprend la demande, décide de l'action |
 | Backend | Node.js | Logique métier, relie Vapi à l'agenda et aux SMS |
 | Agenda (démo) | Google Calendar API | Créneaux disponibles + création de RDV |
-| Hébergement | Render ou Railway | Fait tourner le backend |
+| Hébergement | Render (plan gratuit + keep-alive, temporaire — voir décision ci-dessous) | Fait tourner le backend |
 
-Pas de base de données PostgreSQL ni de dashboard au stade du MVP 1 — l'agenda Google Calendar suffit comme mémoire pour la démo. Ces briques arrivent à partir du MVP 3 (voir `docs/roadmap.md`).
+**Mise à jour du 2026-07-16 :** la base de données PostgreSQL, jusqu'ici prévue pour "MVP 3+", devient nécessaire dès le Sprint 5 (Dashboard Administrateur) — un dashboard multi-entreprises ne peut pas fonctionner sur Google Calendar seul comme mémoire. Voir « Convention pour les tâches futures » ci-dessous pour le découpage de tables déjà validé, et le plan de conception du Sprint 5 (`docs/sprint-log.md`) pour le détail technique retenu.
 
 ## Décision d'architecture — Hébergement
 
@@ -52,16 +54,28 @@ Pas de base de données PostgreSQL ni de dashboard au stade du MVP 1 — l'agend
 
 **Action à prévoir :** supprimer le mécanisme de keep-alive dès que le backend est migré vers une infrastructure toujours active — il devient inutile et n'a plus de raison d'être maintenu.
 
-## Modules concernés par le MVP 1
+## Modules par phase
 
+**Téléphonie et voix (Sprints 1-4, terminés) :**
 - Agent IA réceptionniste (configuration : voix, ton, langue, script)
 - Agenda & disponibilités (via Google Calendar)
 - Prise de rendez-vous
 - SMS de confirmation
-- Transfert d'appel vers un humain
 
-Modules hors périmètre du MVP 1 (voir roadmap pour la suite) : gestion multi-entreprises, authentification, facturation, dashboard, base de données relationnelle, API publique.
+**Plateforme SaaS (Sprints 5-7, priorité actuelle) :**
+- Dashboard Administrateur (gestion des entreprises, numéros, assistants, calendriers, coûts, abonnements, utilisateurs — voir `docs/roadmap.md`)
+- Dashboard Client (par entreprise, ex. Barber Concept)
+- Base de données relationnelle (PostgreSQL, voir découpage de tables ci-dessous)
+- Authentification et rôles (nécessaires dès le Dashboard Administrateur)
+- Intégration Get Time (reportée, Sprint 7)
 
-## Convention pour les tâches futures (MVP 3+)
+**Reporté, toujours prévu :**
+- Transfert d'appel vers un humain (Sprint 8)
 
-Quand la base de données PostgreSQL sera introduite, les tables suivront ce découpage (déjà validé, ne pas le redessiner) : Entreprises, Établissements, Utilisateurs, Agents IA, Services, Disponibilités, Rendez-vous, Clients finaux, Appels, Conversations, Intégrations, Abonnements, Factures, Notifications.
+Hors périmètre pour l'instant : facturation réelle (paiement), API publique, white-label complet.
+
+## Convention pour les tâches futures — modèle de données
+
+Le découpage de tables suivant a été validé avant le pivot du 2026-07-16 et reste la référence pour la base de données PostgreSQL introduite au Sprint 5 (ne pas le redessiner sans raison) : Entreprises, Établissements, Utilisateurs, Agents IA, Services, Disponibilités, Rendez-vous, Clients finaux, Appels, Conversations, Intégrations, Abonnements, Factures, Notifications.
+
+Le détail précis (colonnes, relations, choix techniques) sera affiné et documenté ici à l'issue de la phase de conception du Sprint 5.

@@ -171,11 +171,30 @@ Statut : **clôturé, validé par un vrai appel téléphonique de bout en bout (
 
 Sauvegardes de cette partie : aucune modification de l'assistant Vapi n'a eu lieu (uniquement des tests sur assistant jetable, supprimé après usage). Voir plus haut pour la sauvegarde liée au déploiement (`vapi-assistant-before-sms-webhook.json`).
 
-## Sprint 5 — Transfert humain
-Statut : pas commencé
+## Pivot stratégique — plateforme SaaS multi-entreprises (2026-07-16)
 
-## Sprint 6 — Polish et répétition
-Statut : pas commencé
+Décision du fondateur : le projet n'est plus seulement un prototype de démo pour Barber Concept, mais une plateforme SaaS B2B destinée à accueillir de nombreuses PME (salons, restaurants, cabinets dentaires, cliniques, garages, instituts, cabinets médicaux, etc.). Barber Concept reste le client pilote, plus la cible finale unique.
+
+Conséquence sur la roadmap (voir `docs/roadmap.md`, entièrement restructuré) : le transfert humain (ancien Sprint 5) est repoussé au Sprint 8, toujours prévu mais déprioritisé. Nouvelle priorité immédiate : **Sprint 5 — Dashboard Administrateur**, puis Sprint 6 — Dashboard Client, puis Sprint 7 — intégration Get Time (reportée, pas de dépendance tant que le projet n'a pas été présenté officiellement à Henok).
+
+Documentation mise à jour en conséquence : `docs/roadmap.md` (nouvelle structure de sprints), `docs/architecture.md` (principe directeur multi-tenant déjà ajouté le même jour, section modules par phase mise à jour — PostgreSQL nécessaire dès le Sprint 5), mémoire du projet.
+
+Avant tout développement massif du Dashboard Administrateur, une phase de conception dédiée est prévue (arborescence des écrans, design system, wireframes, modèle de données, choix de stack frontend justifié) — voir entrée dédiée ci-dessous une fois produite.
+
+## Sprint 5 — Dashboard Administrateur (plateforme)
+Statut : cadrage et conception en cours.
+
+## Sprint 6 — Dashboard Client
+Statut : pas commencé, dépend du Sprint 5.
+
+## Sprint 7 — Intégration Get Time
+Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
+
+## Sprint 8 — Transfert humain
+Statut : pas commencé, reporté (déprioritisé au profit des dashboards le 2026-07-16 — voir « Pivot stratégique » ci-dessus). Contenu inchangé par rapport à l'ancien Sprint 5.
+
+## Sprint 9 — Polish et répétition
+Statut : pas commencé.
 
 ## Transparence et consentement — enregistrement des appels
 Statut : appliqué et testé (texte, `/chat`) — 2026-07-15. Demande directe du fondateur (conformité Suisse), hors numérotation roadmap.md.
