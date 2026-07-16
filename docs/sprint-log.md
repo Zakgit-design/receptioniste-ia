@@ -320,6 +320,16 @@ Vérifié directement contre la vraie base (pas de session Clerk réelle disponi
 
 Vérifié contre la vraie base : données de test créées (1 établissement, 1 agent, 2 appels aujourd'hui dont 1 échoué, 1 appel hier, 1 rendez-vous), fonction `getVueEnsembleClient` appelée directement — stats (2 appels, 1 manqué, 1 RDV, 50% de conversion, delta "+1 vs hier"), liste d'attention (le seul appel échoué), activité récente (3 appels, triés du plus récent au plus ancien) et répartition par établissement toutes correctes ; données supprimées ensuite, Barber Concept revérifié à l'état vide réel (zéros partout, "Aucun appel pour l'instant"). Build, lint, 27 tests au vert. **Reste à vérifier par le fondateur** : rendu réel dans le navigateur.
 
+### Tâche #67 — Écran Appels (2026-07-16, même journée)
+
+`/app/appels` : liste des appels scopée par établissements autorisés, barre de filtres (établissement, période, résultat, statut — filtrage en mémoire, volumes attendus faibles pour une seule entreprise), fiche détail (transcription, résumé, durée, rendez-vous créé, SMS envoyé, erreurs) ouverte en panneau latéral au clic. Aucune donnée de démonstration, Barber Concept sans appel réel affiche un état vide honnête.
+
+**Point de routing important, à retenir pour toute future route du Dashboard Client :** contrairement à l'admin (où `@drawer` et `appels` vivent tous les deux directement sous le groupe `(dashboard)`, invisible dans l'URL), côté client `app/` est un vrai segment d'URL. Il a fallu un layout imbriqué `(client)/app/layout.tsx` (sous `(client)/layout.tsx`, qui garde le rail de navigation) pour brancher le slot `@drawer` au bon niveau et intercepter `/app/appels/[id]`. Toute route future de `(client)/app/...` ayant besoin d'un panneau latéral devra suivre ce même schéma. Vérifié au build : `/app`, `/app/(.)appels/[id]`, `/app/appels`, `/app/appels/[id]` listées comme routes distinctes, sans erreur de slot parallèle.
+
+**Composants dédiés** (`AppelsTableClient`, `CallDetailClient`) plutôt que réutilisation forcée de ceux de l'admin — mêmes raisons que les tâches #63/#66 (colonnes Entreprise/Coût sans objet pour une seule entreprise ; le téléphone appelant n'est pas masqué ici, contrairement à l'admin, puisque c'est la propre clientèle de l'entreprise). Types et fonctions pures séparés dans `src/lib/appels-client.ts` (pas dans `data.ts`, qui importe Prisma — un composant `"use client"` ne peut pas importer un module qui dépend du pilote de base de données).
+
+Isolation vérifiée explicitement : `getAppelDetailClient` filtre `agentIaId` par la liste des agents autorisés dans la requête Prisma elle-même (pas un filtre après coup) — un appel d'une autre entreprise renvoie `null`, pas une fuite de données. Vérifié contre la vraie base (établissement + agent + 3 appels de test, statuts variés, transcription/résumé), données supprimées ensuite. Build, lint, 27 tests au vert.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
