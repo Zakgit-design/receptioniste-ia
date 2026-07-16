@@ -50,11 +50,16 @@ export default async function EntrepriseDetailPage({
               {entreprise.statutLabel}
             </StatutBadge>
             <StatutBadge tone="neutral">Plan {entreprise.planLabel}</StatutBadge>
+            {entreprise.estDemo ? <StatutBadge tone="neutral">Démo</StatutBadge> : null}
           </div>
         </div>
-        {!entreprise.estDemo ? (
+        {entreprise.estDemo ? (
+          <span className="text-xs font-semibold text-text-muted">
+            Entreprise de démonstration — pas de suppression possible
+          </span>
+        ) : (
           <SupprimerEntrepriseDialog id={entreprise.id} nom={entreprise.nom} />
-        ) : null}
+        )}
       </div>
 
       <EntrepriseDetailTabs entreprise={entreprise} />

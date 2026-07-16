@@ -19,6 +19,8 @@ export type EntrepriseListeItem = Pick<
   planLabel: string;
   appelsSeptJours: number;
   coutMoisChf: number;
+  /** Entreprise de démonstration (pas en base) — voir EntrepriseDetail.estDemo. */
+  estDemo: boolean;
 };
 
 const statutLabels: Record<EntrepriseModel["statut"], string> = {
@@ -42,6 +44,7 @@ function versEntrepriseListeItem(entreprise: EntrepriseModel): EntrepriseListeIt
     planLabel: "Aucun abonnement",
     appelsSeptJours: 0,
     coutMoisChf: 0,
+    estDemo: false,
   };
 }
 
@@ -56,6 +59,7 @@ function getEntreprisesDemo(): EntrepriseListeItem[] {
       planLabel: "Croissance",
       appelsSeptJours: 132,
       coutMoisChf: 184,
+      estDemo: true,
     },
     {
       id: "entreprise-cabinet-dentaire",
@@ -66,6 +70,7 @@ function getEntreprisesDemo(): EntrepriseListeItem[] {
       planLabel: "Essentiel",
       appelsSeptJours: 28,
       coutMoisChf: 61,
+      estDemo: true,
     },
     {
       id: "entreprise-petit-bouchon",
@@ -76,6 +81,7 @@ function getEntreprisesDemo(): EntrepriseListeItem[] {
       planLabel: "Essai gratuit",
       appelsSeptJours: 19,
       coutMoisChf: 12,
+      estDemo: true,
     },
   ];
 }

@@ -1,13 +1,18 @@
 import { NextResponse } from "next/server";
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
-const isPublicRoute = createRouteMatcher(["/sign-in(.*)", "/sign-up(.*)"]);
+// `(/.*)?` (pas `(.*)`) : `(.*)` matche n'importe quelle route qui commence
+// par les mêmes lettres, pas seulement ses sous-routes — "/app(.*)" matchait
+// donc aussi "/appels" (bug trouvé le 2026-07-17, cliquer sur "Appels" en
+// admin redirigeait vers "/" à cause de la règle isClientRoute ci-dessous).
+// "/app(/.*)?" matche exactement "/app" et "/app/...", jamais "/appels".
+const isPublicRoute = createRouteMatcher(["/sign-in(/.*)?", "/sign-up(/.*)?"]);
 
 // Routes du Dashboard Client (voir docs/sprint6-conception.md, section 1) —
 // tout le reste (hors /sign-in, /sign-up, /api) appartient au Dashboard
 // Administrateur.
-const isClientRoute = createRouteMatcher(["/app(.*)"]);
-const isApiRoute = createRouteMatcher(["/api(.*)"]);
+const isClientRoute = createRouteMatcher(["/app(/.*)?"]);
+const isApiRoute = createRouteMatcher(["/api(/.*)?"]);
 
 export default clerkMiddleware(async (auth, request) => {
   if (isPublicRoute(request)) {

@@ -82,7 +82,10 @@ export function EntreprisesTable({ entreprises }: { entreprises: EntrepriseListe
                 className="cursor-pointer border-b border-border last:border-b-0 hover:bg-paper focus-visible:bg-paper focus-visible:outline-none"
               >
                 <td className="px-4 py-[11px] font-bold text-text whitespace-nowrap">
-                  {entreprise.nom}
+                  <span className="inline-flex items-center gap-1.5">
+                    {entreprise.nom}
+                    {entreprise.estDemo ? <StatutBadge tone="neutral">Démo</StatutBadge> : null}
+                  </span>
                 </td>
                 <td className="px-4 py-[11px] whitespace-nowrap">
                   <SantePill statut={entreprise.sante} />
