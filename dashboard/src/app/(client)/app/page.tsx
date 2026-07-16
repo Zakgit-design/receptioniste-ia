@@ -1,9 +1,34 @@
-import { PlaceholderPanel } from "@/components/placeholder-panel";
+import { getCurrentUser } from "@/auth";
+import { PageHeader } from "@/components/page-header";
+import { StatTiles } from "@/components/stat-tiles";
+import { AppelsAttentionClient } from "@/components/appels-attention-client";
+import { ActiviteRecenteClient } from "@/components/activite-recente-client";
+import { StatsEtablissementsClient } from "@/components/stats-etablissements-client";
+import { getVueEnsembleClient } from "./data";
 
-// Vue d'ensemble du Dashboard Client (/app) — placeholder, voir
-// docs/roadmap.md, tâche #66.
-export default function VueEnsembleClientPage() {
+// Vue d'ensemble du Dashboard Client (/app) — voir docs/roadmap.md, tâche
+// #66. Pas de graphique 14 jours (`CallsChart`, réutilisé côté admin) : tant
+// que le branchement Vapi/Twilio -> table `appels` n'existe pas (voir
+// docs/sprint6-conception.md, section 3), un graphique n'afficherait qu'une
+// ligne plate à zéro sur 14 jours — aucune valeur ajoutée par rapport aux
+// tuiles ci-dessous. À reconsidérer une fois de vrais appels enregistrés.
+export default async function VueEnsembleClientPage() {
+  const user = await getCurrentUser();
+  const { statistiques, appelsAttention, activiteRecente, statistiquesEtablissements } =
+    await getVueEnsembleClient(user);
+
   return (
-    <PlaceholderPanel description="Vue d'ensemble de votre entreprise — appels du jour, rendez-vous, taux de conversion. Arrive dans une prochaine tâche." />
+    <div>
+      <PageHeader title="Vue d'ensemble" subtitle="État de votre entreprise en direct" />
+
+      <StatTiles statistiques={statistiques} />
+
+      <AppelsAttentionClient appels={appelsAttention} />
+
+      <div className="grid grid-cols-2 items-start gap-4">
+        <ActiviteRecenteClient appels={activiteRecente} />
+        <StatsEtablissementsClient etablissements={statistiquesEtablissements} />
+      </div>
+    </div>
   );
 }

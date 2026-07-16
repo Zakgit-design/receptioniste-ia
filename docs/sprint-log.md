@@ -310,6 +310,16 @@ Nouveau composant `src/components/ui/switch.tsx` (primitive Radix, déjà dispon
 
 Vérifié directement contre la vraie base (pas de session Clerk réelle disponible) : lecture/écriture des coordonnées et des préférences de notification sur Barber Concept, valeurs restaurées après coup ; création puis lecture d'un abonnement de test (plan "Standard", 149 CHF/mensuel, actif, échéance) confirmant le format d'affichage, puis suppression pour laisser Barber Concept sans abonnement (état réel actuel — l'écran affiche donc "Aucun abonnement actif"). Build, lint, 27 tests au vert. **Reste à vérifier par le fondateur** : rendu réel dans le navigateur.
 
+### Tâche #66 — Écran Vue d'ensemble (2026-07-16, même journée)
+
+`/app` : quatre tuiles de stats (appels aujourd'hui, appels manqués, rendez-vous créés, taux de conversion — chacune avec un delta réel "vs hier", pas inventé), "Appels nécessitant une attention" (filtre simple `appels.statut = echoue`, pas de nouvelle table, pas le centre d'actions plateforme), "Activité récente" (derniers appels tous statuts confondus) et "Statistiques par établissement" (appels et RDV du jour, par établissement). Aucune donnée de démonstration — tout est scopé via `getEtablissementIdsAutorises` (Sprint 6, tâche #63), réutilisée telle quelle.
+
+**Composants :** `StatTiles` (Sprint 5) réutilisé directement. `CallsChart` (graphique 14 jours) volontairement omis pour cette tâche : avec zéro appel réel aujourd'hui, il n'afficherait qu'une ligne plate à zéro sur 14 jours, sans valeur ajoutée par rapport aux tuiles déjà affichées — à reconsidérer une fois le branchement Vapi/Twilio fait. `RecentCalls` (Sprint 5, admin) non réutilisé pour "Activité récente" : son champ `entrepriseNom` n'a pas de sens pour une seule entreprise — nouveau composant dédié `ActiviteRecenteClient`, même logique que le choix déjà fait pour Établissements (tâche #63). Deux autres nouveaux composants, sans équivalent existant : `AppelsAttentionClient`, `StatsEtablissementsClient`.
+
+**Résultat/statut d'un appel** dérivé du modèle (pas de champ `resultat` en base) : "Échec" si `statut = echoue`, "Transféré" si `transfere`, sinon "Rendez-vous pris" ou "Renseignement" selon la présence d'un `rendezVousId`.
+
+Vérifié contre la vraie base : données de test créées (1 établissement, 1 agent, 2 appels aujourd'hui dont 1 échoué, 1 appel hier, 1 rendez-vous), fonction `getVueEnsembleClient` appelée directement — stats (2 appels, 1 manqué, 1 RDV, 50% de conversion, delta "+1 vs hier"), liste d'attention (le seul appel échoué), activité récente (3 appels, triés du plus récent au plus ancien) et répartition par établissement toutes correctes ; données supprimées ensuite, Barber Concept revérifié à l'état vide réel (zéros partout, "Aucun appel pour l'instant"). Build, lint, 27 tests au vert. **Reste à vérifier par le fondateur** : rendu réel dans le navigateur.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
