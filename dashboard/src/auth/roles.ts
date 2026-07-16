@@ -48,3 +48,12 @@ export function clerkOrgRoleFromRoleUtilisateur(role: RoleUtilisateur): string {
       return "org:membre";
   }
 }
+
+/** Libellé français affiché dans les écrans (Dashboard Admin et Client). */
+export const libelleRoleUtilisateur: Record<RoleUtilisateur, string> = {
+  admin_plateforme: "Admin plateforme",
+  proprietaire: "Propriétaire",
+  administrateur: "Administrateur",
+  responsable_etablissement: "Responsable d'établissement",
+  membre: "Membre",
+};

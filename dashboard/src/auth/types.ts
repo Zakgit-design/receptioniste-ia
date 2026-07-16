@@ -25,4 +25,6 @@ export type MembreOrganisation = {
   nom: string;
   role: RoleUtilisateur;
   statut: "actif" | "invitation_en_attente";
+  /** Id Clerk de l'invitation (pour la révoquer) — `null` pour un membre déjà actif. */
+  invitationId: string | null;
 };

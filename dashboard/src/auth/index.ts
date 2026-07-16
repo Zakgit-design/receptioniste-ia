@@ -131,6 +131,7 @@ export async function listOrganizationMembers(entrepriseId: string): Promise<Mem
         .join(" ") || (membership.publicUserData?.identifier ?? ""),
     role: roleUtilisateurFromClerkOrgRole(membership.role),
     statut: "actif",
+    invitationId: null,
   }));
 
   const invitesEnAttente: MembreOrganisation[] = invitations.data.map((invitation) => ({
@@ -139,7 +140,66 @@ export async function listOrganizationMembers(entrepriseId: string): Promise<Mem
     nom: invitation.emailAddress,
     role: roleUtilisateurFromClerkOrgRole(invitation.role),
     statut: "invitation_en_attente",
+    invitationId: invitation.id,
   }));
 
   return [...membres, ...invitesEnAttente];
+}
+
+/**
+ * Change le rôle d'organisation Clerk d'un membre déjà actif (écran Équipe et
+ * accès, docs/roadmap.md tâche #64). N'écrit jamais directement dans
+ * `utilisateurs` — c'est le webhook `organizationMembership.updated` (voir
+ * src/auth/webhook.ts) qui synchronise la table, comme pour tout le reste
+ * (voir docs/architecture.md, section Authentification).
+ *
+ * @param organizationId l'organizationId Clerk de l'entreprise
+ */
+export async function changerRoleMembre(
+  organizationId: string,
+  clerkUserId: string,
+  role: RoleUtilisateur
+): Promise<void> {
+  const client = await clerkClient();
+  await client.organizations.updateOrganizationMembership({
+    organizationId,
+    userId: clerkUserId,
+    role: clerkOrgRoleFromRoleUtilisateur(role),
+  });
+}
+
+/**
+ * Retire un membre actif de l'organisation Clerk d'une entreprise. Déclenche
+ * l'événement `organizationMembership.deleted`, qui supprime la ligne
+ * correspondante dans `utilisateurs` (voir src/auth/webhook.ts) — jamais fait
+ * directement ici.
+ *
+ * @param organizationId l'organizationId Clerk de l'entreprise
+ */
+export async function retirerMembre(organizationId: string, clerkUserId: string): Promise<void> {
+  const client = await clerkClient();
+  await client.organizations.deleteOrganizationMembership({
+    organizationId,
+    userId: clerkUserId,
+  });
+}
+
+/**
+ * Révoque une invitation encore en attente (pas un membre actif — voir
+ * `retirerMembre` pour ce cas). `requestingUserId` est optionnel côté SDK
+ * Clerk ; on transmet l'utilisateur qui révoque pour la traçabilité.
+ *
+ * @param organizationId l'organizationId Clerk de l'entreprise
+ */
+export async function revoquerInvitation(
+  organizationId: string,
+  invitationId: string,
+  requestingUserId?: string
+): Promise<void> {
+  const client = await clerkClient();
+  await client.organizations.revokeOrganizationInvitation({
+    organizationId,
+    invitationId,
+    requestingUserId,
+  });
 }

@@ -134,6 +134,26 @@ function depuisInvitationAcceptee(data: {
   };
 }
 
+/**
+ * `organizationMembership.deleted` : un membre a été retiré d'une
+ * organisation Clerk (voir `retirerMembre`, src/auth/index.ts) — supprime sa
+ * ligne dans `utilisateurs`. Les assignations d'établissement
+ * (`assignations_etablissement`, contrainte `ON DELETE RESTRICT`, voir
+ * migration 20260716183055_sprint6_roles_client) doivent être supprimées
+ * d'abord, dans la même transaction, sans quoi la suppression échouerait.
+ */
+async function supprimerAppartenanceEntreprise(clerkUserId: string): Promise<void> {
+  if (!clerkUserId) return;
+
+  const utilisateur = await prisma.utilisateur.findUnique({ where: { clerkUserId } });
+  if (!utilisateur) return; // déjà absent (ex. webhook rejoué) — rien à faire
+
+  await prisma.$transaction([
+    prisma.assignationEtablissement.deleteMany({ where: { utilisateurId: utilisateur.id } }),
+    prisma.utilisateur.delete({ where: { clerkUserId } }),
+  ]);
+}
+
 function depuisMembership(data: {
   role: string;
   organization: { id: string };
@@ -183,6 +203,9 @@ export async function handleClerkWebhookRequest(request: NextRequest): Promise<R
       break;
     case "organizationMembership.updated":
       await synchroniserAppartenanceEntreprise(depuisMembership(event.data));
+      break;
+    case "organizationMembership.deleted":
+      await supprimerAppartenanceEntreprise(depuisMembership(event.data).clerkUserId);
       break;
     default:
       // Les autres types d'événements ne concernent pas la synchronisation
