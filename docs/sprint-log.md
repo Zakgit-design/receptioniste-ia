@@ -258,7 +258,7 @@ Vérifié : build, lint, 21 tests toujours au vert.
 **Sprint 5 officiellement clôturé le 2026-07-16.** Décision du fondateur : le branchement des appels réels Vapi/Twilio vers la table `Appels` (et la fin du mélange démo/réel sur Vue d'ensemble/Finances/Santé plateforme) est volontairement différé à une tâche dédiée après le Sprint 6, pour ne pas interrompre la construction du Dashboard Client.
 
 ## Sprint 6 — Dashboard Client
-Statut : conception terminée le 2026-07-16 (`docs/sprint6-conception.md`), prêt pour le développement (tâches #62-68 dans `docs/roadmap.md`).
+Statut : **P1 terminé le 2026-07-16** — les 7 tâches (#62-68 dans `docs/roadmap.md`) sont construites et vérifiées (build/lint/tests + vérification directe contre la vraie base à chaque étape). Reste en attente : vérification visuelle par le fondateur dans un vrai navigateur (aucune session Clerk disponible pour les agents qui ont implémenté ces tâches).
 
 **Conception produite le 2026-07-16**, même méthode que le Sprint 5 : arborescence des écrans (`/app/*`, nouveau groupe de routes, entreprise jamais en paramètre d'URL — toujours dérivée de la session côté serveur), permissions exactes des 4 rôles client (propriétaire/administrateur/responsable d'établissement/membre), composants réutilisés du Dashboard Administrateur, aucune donnée de démonstration introduite (contrairement au Sprint 5 — voir écart de périmètre ci-dessus).
 
@@ -329,6 +329,18 @@ Vérifié contre la vraie base : données de test créées (1 établissement, 1 
 **Composants dédiés** (`AppelsTableClient`, `CallDetailClient`) plutôt que réutilisation forcée de ceux de l'admin — mêmes raisons que les tâches #63/#66 (colonnes Entreprise/Coût sans objet pour une seule entreprise ; le téléphone appelant n'est pas masqué ici, contrairement à l'admin, puisque c'est la propre clientèle de l'entreprise). Types et fonctions pures séparés dans `src/lib/appels-client.ts` (pas dans `data.ts`, qui importe Prisma — un composant `"use client"` ne peut pas importer un module qui dépend du pilote de base de données).
 
 Isolation vérifiée explicitement : `getAppelDetailClient` filtre `agentIaId` par la liste des agents autorisés dans la requête Prisma elle-même (pas un filtre après coup) — un appel d'une autre entreprise renvoie `null`, pas une fuite de données. Vérifié contre la vraie base (établissement + agent + 3 appels de test, statuts variés, transcription/résumé), données supprimées ensuite. Build, lint, 27 tests au vert.
+
+### Tâche #68 — Écran Rendez-vous (2026-07-16, même journée) — dernière tâche P1 du Sprint 6
+
+`/app/rendez-vous` : liste des rendez-vous scopée par établissements autorisés (établissement, service, client, date/heure, statut), filtres établissement/statut, même schéma que Appels (tâche #67). Aucune donnée de démonstration, Barber Concept sans rendez-vous réel affiche un état vide honnête.
+
+**Colonne "Collaborateur" — limite honnête, pas une colonne inventée :** vérifié que ce concept n'existe nulle part dans le modèle de données (`RendezVous`, `Service`) ni dans le backend vocal Vapi/Twilio actuel. Plutôt que d'ajouter une colonne condamnée à rester vide, l'écran affiche "Non renseigné" pour cette information — à combler le jour où le produit capture réellement cette donnée (probablement lié à l'intégration Get Time, Sprint 7).
+
+**Get Time :** aucune intégration construite, comme prévu ("préparation sans connecter maintenant") — l'écran lit `RendezVous` tel quel, sans logique câblée en dur sur Google Calendar (pas de lien fabriqué à partir de `googleCalendarEventId`). Le modèle `Integration`, déjà générique, reste le point d'extension prévu.
+
+Vérifié contre la vraie base (2 établissements, 1 service, 2 clients, 4 rendez-vous — un par statut confirmé/terminé/absent/annulé) : liste complète et liste scopée à un seul établissement toutes deux correctes, aucune fuite inter-établissement, données supprimées ensuite. Build, lint, 27 tests au vert.
+
+**Sprint 6 — les 7 tâches P1 (#62-68) sont maintenant toutes terminées.** Reste en attente : vérification visuelle du fondateur dans un vrai navigateur (aucune session Clerk disponible pour les agents qui ont implémenté ce sprint).
 
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
