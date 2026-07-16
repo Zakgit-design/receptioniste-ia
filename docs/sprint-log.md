@@ -342,6 +342,17 @@ Vérifié contre la vraie base (2 établissements, 1 service, 2 clients, 4 rende
 
 **Sprint 6 — les 7 tâches P1 (#62-68) sont maintenant toutes terminées.** Reste en attente : vérification visuelle du fondateur dans un vrai navigateur (aucune session Clerk disponible pour les agents qui ont implémenté ce sprint).
 
+### Écart Clerk trouvé et corrigé au moment de préparer la vérification visuelle (2026-07-17)
+
+En préparant la première connexion réelle, découverte que l'activation d'Organizations (`clerk enable orgs`, faite à la tâche #62) avait mis par défaut le mode **« Membership required »** (`force_organization_selection: true`, défaut Clerk depuis fin 2025) : tout utilisateur connecté est forcé de choisir/créer une organisation. Conséquence directe : le compte du fondateur avait été automatiquement enrôlé dans une organisation "Zakaria's Organization" créée à la volée, le faisant apparaître comme "propriétaire" d'une entreprise plutôt que comme admin plateforme — contraire à la règle actée dans `docs/architecture.md` (« un admin plateforme n'appartient à aucune organisation »).
+
+**Corrigé, avec confirmation du fondateur avant d'agir (changement de config sur un service réel) :**
+- `force_organization_selection` repassé à `false` (mode « Membership optional ») via `clerk config patch`.
+- L'organisation "Zakaria's Organization", créée par erreur, supprimée.
+- `public_metadata.role = "admin_plateforme"` renseigné sur le compte du fondateur (prévu depuis le Sprint 5 mais jamais fait explicitement — voir `src/auth/index.ts`, `getCurrentUser`).
+
+**À garder en tête pour tout futur compte admin plateforme** : `publicMetadata.role` doit être renseigné manuellement dans le dashboard Clerk (aucune UI dans le produit pour ça, décision déjà actée au Sprint 5) — sans quoi le rôle reste `null` dès que le compte n'a aucune organisation active.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
