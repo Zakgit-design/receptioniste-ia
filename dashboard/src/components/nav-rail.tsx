@@ -2,13 +2,46 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Phone } from "lucide-react";
-import { navGroups } from "@/lib/nav";
+import {
+  Phone,
+  LayoutDashboard,
+  Building2,
+  Wallet,
+  Activity,
+  Users,
+  CalendarClock,
+  Settings,
+  type LucideIcon,
+} from "lucide-react";
+import type { NavGroup, NavIconName } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { getOverviewData } from "@/app/(dashboard)/data";
 import { UserButton } from "@/auth/ui";
 
-export function NavRail() {
+// Résout un nom d'icône (donnée sérialisable, voir src/lib/nav.ts) vers son
+// composant lucide-react réel — ne vit que dans ce composant client.
+const icons: Record<NavIconName, LucideIcon> = {
+  LayoutDashboard,
+  Building2,
+  Phone,
+  Wallet,
+  Activity,
+  Users,
+  CalendarClock,
+  Settings,
+};
+
+// Rail de navigation partagé par le Dashboard Administrateur et le Dashboard
+// Client (voir docs/sprint6-conception.md) : chaque layout passe son propre
+// jeu de navigation (`src/lib/nav.ts` / `src/lib/nav-client.ts`), le composant
+// ne connaît que la forme générique `NavGroup`.
+export function NavRail({
+  groups,
+  subtitle = "Admin",
+}: {
+  groups: NavGroup[];
+  subtitle?: string;
+}) {
   const pathname = usePathname();
   // Compteur du centre d'actions, visible depuis tout écran (voir
   // docs/sprint5-conception.md, section 2) — même source de données que la
@@ -28,13 +61,13 @@ export function NavRail() {
             Standard
           </div>
           <div className="text-[10.5px] font-semibold tracking-[0.06em] text-text-muted uppercase">
-            Réceptionniste IA · Admin
+            Réceptionniste IA · {subtitle}
           </div>
         </div>
       </div>
 
       <nav className="flex flex-1 flex-col gap-[18px]">
-        {navGroups.map((group) => (
+        {groups.map((group) => (
           <div key={group.label}>
             <div className="mb-1.5 px-2.5 text-[10.5px] font-bold tracking-[0.07em] text-text-muted uppercase">
               {group.label}
@@ -46,7 +79,7 @@ export function NavRail() {
                   item.href === "/"
                     ? pathname === "/"
                     : pathname === item.href || pathname.startsWith(`${item.href}/`);
-                const Icon = item.icon;
+                const Icon = icons[item.icon];
                 return (
                   <Link
                     key={item.href}

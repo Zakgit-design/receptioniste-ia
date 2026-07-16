@@ -20,7 +20,9 @@ import { getAdminsPlateforme, getUtilisateursParEntreprise } from "./data";
 const libelleRole: Record<RoleUtilisateur, string> = {
   admin_plateforme: "Admin plateforme",
   proprietaire: "Propriétaire",
-  employe: "Employé",
+  administrateur: "Administrateur",
+  responsable_etablissement: "Responsable d'établissement",
+  membre: "Membre",
 };
 
 const thClass =

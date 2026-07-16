@@ -1,18 +1,50 @@
 import type { RoleUtilisateur } from "@/generated/prisma/enums";
 
-// Mapping entre les rôles d'organisation Clerk ("org:admin" / "org:member",
-// les deux rôles par défaut d'une Organization Clerk) et nos rôles internes
-// (voir docs/architecture.md, modèle `utilisateurs.role`).
+// Mapping entre les rôles d'organisation Clerk et nos rôles internes (voir
+// docs/architecture.md, modèle `utilisateurs.role`, et docs/sprint6-conception.md,
+// section 0.2).
 //
-// Décision retenue pour le MVP : le propriétaire d'une entreprise cliente
-// est admin de son organisation Clerk, un employé en est simple membre.
+// Le Dashboard Client (Sprint 6) distingue 4 rôles côté organisation :
+// propriétaire, administrateur, responsable d'établissement, membre. Ils
+// correspondent à 4 rôles personnalisés Clerk (`org:proprietaire`,
+// `org:administrateur`, `org:responsable_etablissement`, `org:membre`), à
+// créer manuellement dans le dashboard Clerk (Organizations → Roles &
+// Permissions) — action fondateur en attente au moment où ce fichier est
+// écrit. Repli gracieux tant qu'ils n'existent pas encore : les 2 rôles
+// natifs Clerk (`org:admin`/`org:member`, toujours présents par défaut sur
+// toute organisation) continuent de mapper vers `proprietaire`/`membre`.
+//
 // `admin_plateforme` n'est jamais un rôle d'organisation Clerk — ces comptes
 // n'appartiennent à aucune organisation (voir getCurrentUser dans
 // src/auth/index.ts pour comment ce cas est détecté).
 export function roleUtilisateurFromClerkOrgRole(clerkRole: string): RoleUtilisateur {
-  return clerkRole === "org:admin" ? "proprietaire" : "employe";
+  switch (clerkRole) {
+    case "org:proprietaire":
+    case "org:admin":
+      return "proprietaire";
+    case "org:administrateur":
+      return "administrateur";
+    case "org:responsable_etablissement":
+      return "responsable_etablissement";
+    case "org:membre":
+    case "org:member":
+      return "membre";
+    default:
+      return "membre";
+  }
 }
 
 export function clerkOrgRoleFromRoleUtilisateur(role: RoleUtilisateur): string {
-  return role === "proprietaire" ? "org:admin" : "org:member";
+  switch (role) {
+    case "proprietaire":
+      return "org:proprietaire";
+    case "administrateur":
+      return "org:administrateur";
+    case "responsable_etablissement":
+      return "org:responsable_etablissement";
+    case "membre":
+      return "org:membre";
+    default:
+      return "org:membre";
+  }
 }

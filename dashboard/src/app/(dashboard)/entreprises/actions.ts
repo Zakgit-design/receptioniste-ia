@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { StatutEntreprise } from "@/generated/prisma/enums";
+import { createOrganizationForEntreprise, isClerkConfigured } from "@/auth";
 
 // Server action pour le formulaire "+ Nouvelle entreprise" (voir
 // docs/roadmap.md, Sprint 5, tâche 59). Champs minimaux du modèle
@@ -35,6 +36,15 @@ export async function createEntreprise(
     ? (statutBrut as StatutEntreprise)
     : StatutEntreprise.essai;
 
+  // Une Entreprise = une Organisation Clerk (voir docs/architecture.md,
+  // section Authentification, et docs/sprint6-conception.md, section 0.1) —
+  // créée ici pour que le Dashboard Client puisse ensuite y inviter des
+  // utilisateurs. Ne bloque jamais la création si Clerk n'est pas configuré
+  // (cas dev sans clés).
+  const clerkOrganizationId = isClerkConfigured()
+    ? await createOrganizationForEntreprise(nom)
+    : null;
+
   await prisma.entreprise.create({
     data: {
       nom,
@@ -42,6 +52,7 @@ export async function createEntreprise(
       statut,
       emailContact: emailContact || null,
       telephoneContact: telephoneContact || null,
+      clerkOrganizationId,
     },
   });
 

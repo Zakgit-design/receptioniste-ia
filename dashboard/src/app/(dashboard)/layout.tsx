@@ -1,5 +1,6 @@
 import { NavRail } from "@/components/nav-rail";
 import { TopBar } from "@/components/top-bar";
+import { navGroups } from "@/lib/nav";
 
 // Coquille partagée par tout le Dashboard Administrateur (hors /login, géré par Clerk
 // plus tard) : rail de navigation à gauche + barre supérieure + zone de contenu.
@@ -17,7 +18,7 @@ export default function DashboardLayout({
 }) {
   return (
     <div className="flex min-h-screen">
-      <NavRail />
+      <NavRail groups={navGroups} />
       <div className="flex min-h-screen flex-1 flex-col">
         <TopBar />
         <main className="flex-1 overflow-x-auto px-[30px] py-[26px] pb-[60px]">

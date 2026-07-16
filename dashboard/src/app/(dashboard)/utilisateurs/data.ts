@@ -50,13 +50,13 @@ export function getUtilisateursParEntreprise(): UtilisateursEntreprise[] {
         {
           nom: "Amélie Rossi",
           email: "amelie.rossi@barberconcept.ch",
-          role: "employe",
+          role: "membre",
           statut: "actif",
         },
         {
           nom: "Karim Haddad",
           email: "karim.haddad@barberconcept.ch",
-          role: "employe",
+          role: "membre",
           statut: "invitation_en_attente",
         },
       ],

@@ -1,6 +1,7 @@
 import "server-only";
 import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
 import type { RoleUtilisateur } from "@/generated/prisma/enums";
+import { prisma } from "@/lib/prisma";
 import { roleUtilisateurFromClerkOrgRole, clerkOrgRoleFromRoleUtilisateur } from "./roles";
 import type { Utilisateur, MembreOrganisation } from "./types";
 
@@ -33,26 +34,54 @@ export async function getCurrentUser(): Promise<Utilisateur | null> {
   const nom = [user.firstName, user.lastName].filter(Boolean).join(" ") || email;
 
   // Un utilisateur avec une organisation active a un rôle d'organisation
-  // (proprietaire/employe). Un admin plateforme n'appartient à aucune
-  // organisation : son rôle vient alors de ses métadonnées publiques Clerk
-  // (à renseigner manuellement depuis le dashboard Clerk pour ces comptes).
+  // (proprietaire/administrateur/responsable_etablissement/membre). Un admin
+  // plateforme n'appartient à aucune organisation : son rôle vient alors de
+  // ses métadonnées publiques Clerk (à renseigner manuellement depuis le
+  // dashboard Clerk pour ces comptes).
   const role = orgRole
     ? roleUtilisateurFromClerkOrgRole(orgRole)
     : ((user.publicMetadata?.role as RoleUtilisateur | undefined) ?? null);
+
+  // `entrepriseId` est notre `Entreprise.id` interne (uuid Postgres), jamais
+  // l'organizationId Clerk — voir src/auth/types.ts. Résolu ici via
+  // `clerkOrganizationId` (unique) pour que le reste du produit n'ait jamais
+  // besoin de connaître l'id Clerk d'une organisation.
+  const entreprise = orgId
+    ? await prisma.entreprise.findUnique({
+        where: { clerkOrganizationId: orgId },
+        select: { id: true },
+      })
+    : null;
 
   return {
     clerkUserId: user.id,
     email,
     nom,
     role,
-    entrepriseId: orgId ?? null,
+    entrepriseId: entreprise?.id ?? null,
   };
 }
 
-/** Rôle interne (`admin_plateforme`/`proprietaire`/`employe`) de l'utilisateur connecté. */
+/** Rôle interne (`admin_plateforme`/`proprietaire`/`administrateur`/`responsable_etablissement`/`membre`) de l'utilisateur connecté. */
 export async function getUserRole(): Promise<RoleUtilisateur | null> {
   const user = await getCurrentUser();
   return user?.role ?? null;
+}
+
+/**
+ * Crée l'Organisation Clerk d'une nouvelle entreprise cliente (voir
+ * docs/sprint6-conception.md, section 0.1 — une Entreprise = une Organisation
+ * Clerk). `createdBy` est volontairement omis : ce paramètre est optionnel
+ * dans l'API Clerk, et le renseigner avec l'admin plateforme qui crée
+ * l'entreprise le rendrait automatiquement membre de l'organisation cliente —
+ * un admin plateforme n'appartient à aucune organisation cliente.
+ *
+ * @returns l'id de l'organisation Clerk créée (à stocker dans `Entreprise.clerkOrganizationId`)
+ */
+export async function createOrganizationForEntreprise(nom: string): Promise<string> {
+  const client = await clerkClient();
+  const organization = await client.organizations.createOrganization({ name: nom });
+  return organization.id;
 }
 
 /**

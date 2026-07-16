@@ -30,7 +30,9 @@ enum StatutEntreprise {
 enum RoleUtilisateur {
   admin_plateforme
   proprietaire
-  employe
+  administrateur
+  responsable_etablissement
+  membre
 
   @@map("role_utilisateur")
 }
@@ -138,6 +140,8 @@ model Entreprise {
   telephoneContact    String?          @map("telephone_contact")
   clerkOrganizationId String?          @unique @map("clerk_organization_id")
   planId              String?          @map("plan_id")
+  notifierRdvParEmail Boolean          @default(true) @map("notifier_rdv_par_email")
+  notifierRdvParSms   Boolean          @default(true) @map("notifier_rdv_par_sms")
   createdAt           DateTime         @default(now()) @map("created_at")
 
   etablissements  Etablissement[]
@@ -163,10 +167,11 @@ model Etablissement {
   googleCalendarId String?  @map("google_calendar_id")
   createdAt        DateTime @default(now()) @map("created_at")
 
-  entreprise     Entreprise      @relation(fields: [entrepriseId], references: [id])
-  agentsIA       AgentIA[]
-  disponibilites Disponibilite[]
-  rendezVous     RendezVous[]
+  entreprise                Entreprise                 @relation(fields: [entrepriseId], references: [id])
+  agentsIA                  AgentIA[]
+  disponibilites            Disponibilite[]
+  rendezVous                RendezVous[]
+  assignations              AssignationEtablissement[]
 
   @@index([entrepriseId])
   @@map("etablissements")
@@ -183,9 +188,28 @@ model Utilisateur {
 
   entreprise    Entreprise?    @relation(fields: [entrepriseId], references: [id])
   notifications Notification[]
+  assignations  AssignationEtablissement[]
 
   @@index([entrepriseId])
   @@map("utilisateurs")
+}
+
+// Établissements assignés à un utilisateur `responsable_etablissement` — voir
+// docs/sprint6-conception.md, section 0.2. Many-to-many : un responsable peut
+// gérer plusieurs établissements (ex. Cornavin + Eaux-Vives).
+model AssignationEtablissement {
+  id              String   @id @default(uuid())
+  utilisateurId   String   @map("utilisateur_id")
+  etablissementId String   @map("etablissement_id")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  utilisateur   Utilisateur   @relation(fields: [utilisateurId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@unique([utilisateurId, etablissementId])
+  @@index([utilisateurId])
+  @@index([etablissementId])
+  @@map("assignations_etablissement")
 }
 
 model AgentIA {

@@ -268,6 +268,16 @@ Statut : conception terminée le 2026-07-16 (`docs/sprint6-conception.md`), prê
 
 **Action fondateur requise, non bloquante (même nature que les prérequis Postgres/Clerk précédents) :** créer les 4 rôles personnalisés dans Clerk (Dashboard → Organizations → Roles & Permissions).
 
+### Tâche #62 — Prérequis (2026-07-16, même journée)
+
+Migration Prisma appliquée sur la vraie base Supabase (`role_utilisateur` étendu à 5 valeurs — `employe` retiré, `administrateur`/`responsable_etablissement`/`membre` ajoutés ; nouvelle table `assignations_etablissement` ; colonnes `notifier_rdv_par_email`/`notifier_rdv_par_sms` sur `entreprises`) — 0 ligne `utilisateurs` en base au moment de la migration, aucune donnée à migrer. Mapping des rôles (`src/auth/roles.ts`) étendu aux 4 rôles Clerk personnalisés, avec repli sur les rôles natifs `org:admin`/`org:member` tant qu'ils ne sont pas créés côté Clerk. `createEntreprise` crée désormais l'Organisation Clerk correspondante (`createOrganizationForEntreprise`, sans `createdBy` pour ne pas rendre l'admin plateforme membre de l'organisation cliente). Squelette de route `(client)` sous `/app` (6 pages placeholder), garde d'accès à deux niveaux : redirection admin ↔ client par `orgId` dans `proxy.ts`, restriction fine par rôle interne (`getUserRole()`) directement dans les pages Équipe/Paramètres. `nav-rail.tsx` rendu réutilisable par les deux dashboards (les icônes passent désormais par un nom sérialisable, pas le composant lucide-react directement — une fonction ne peut pas traverser la frontière Server → Client Component dans cette version de Next.js).
+
+**Bug trouvé et corrigé pendant la relecture (avant cette tâche, mais visible seulement maintenant) :** `getCurrentUser()` (`src/auth/index.ts`) fixait `entrepriseId` à l'`orgId` Clerk brut, alors que le contrat documenté (`src/auth/types.ts`) est notre `Entreprise.id` interne. Sans donnée réelle à scoper au Sprint 5, ce n'était pas encore un problème visible — mais bloquant pour tous les écrans du Sprint 6, qui filtrent leurs requêtes Prisma par cet id. Corrigé : résolution via `prisma.entreprise.findUnique({ where: { clerkOrganizationId: orgId } })`.
+
+**Blocage rencontré et résolu :** la création d'Organisation Clerk échouait (`organization_not_enabled_in_instance`) — la fonctionnalité "Organizations" n'était pas activée sur l'instance Clerk. Activée via le CLI Clerk (`clerk enable orgs`, déjà lié à l'app), avec confirmation du fondateur avant d'agir (changement de configuration sur un service tiers réel). Le rattrapage de Barber Concept et MS Savané a ensuite été rejoué avec succès (script ponctuel, non commité, supprimé après vérification) — les deux entreprises ont désormais un `clerk_organization_id` réel.
+
+Vérifié : build, lint, 21 tests toujours au vert ; requête non authentifiée vers `/app` redirige bien vers `/sign-in`.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 

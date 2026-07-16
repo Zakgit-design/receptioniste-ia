@@ -146,7 +146,7 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 
 **Tâches, dans l'ordre de dépendance (voir justification complète dans `docs/sprint6-conception.md`, section 7) :**
 
-- [ ] 62. Prérequis : liaison Entreprise ↔ Organisation Clerk (création auto + backfill Barber Concept/MS Savané), migration du modèle de données (enum `role_utilisateur` étendu à 5 valeurs, table `assignations_etablissement`, colonnes de préférences de notification), squelette de route `(client)` sous `/app` avec garde de rôle (`proxy.ts`) et navigation dédiée
+- [x] 62. Prérequis : liaison Entreprise ↔ Organisation Clerk (création auto + backfill Barber Concept/MS Savané), migration du modèle de données (enum `role_utilisateur` étendu à 5 valeurs, table `assignations_etablissement`, colonnes de préférences de notification), squelette de route `(client)` sous `/app` avec garde de rôle (`proxy.ts`) et navigation dédiée — terminé le 2026-07-16. Blocage rencontré et résolu en cours de route : la fonctionnalité "Organizations" n'était pas activée sur l'instance Clerk (`clerk enable orgs`, action désormais faite) — le backfill des 2 entreprises existantes a été rejoué avec succès après activation
 - [ ] 63. Écran Établissements (lecture seule, scope par établissements assignés pour un responsable d'établissement)
 - [ ] 64. Écran Équipe et accès (liste des membres, invitations avec sélecteur des 4 rôles, retrait/changement de rôle selon permissions)
 - [ ] 65. Écran Paramètres (coordonnées, préférences de notification, abonnement actuel en lecture)
