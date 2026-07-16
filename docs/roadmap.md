@@ -102,23 +102,36 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 ## Sprint 5 — Dashboard Administrateur (plateforme)
 
 **Objectif :** donner au fondateur une interface interne pour piloter toute la plateforme, entreprise par entreprise — le cœur opérationnel du SaaS.
-**Statut :** cadrage et conception en cours (voir plan de conception dédié dans `docs/sprint-log.md` avant tout développement massif).
+**Statut :** conception terminée le 2026-07-16 (voir `docs/sprint5-conception.md` et `docs/architecture.md`) — prêt pour le développement.
 **Dépendances :** Sprints 1-4 (le backend Twilio/Vapi/Calendar/SMS existant devient la première ressource gérée par ce dashboard).
 **Critères de validation :** démonstration en moins de 30 secondes de l'état de toute la plateforme ; capacité réelle à créer/gérer une entreprise depuis l'interface.
 
-**Contenu prévu** (détail exact et découpage en tâches définis à l'issue de la phase de conception) :
-- créer une nouvelle entreprise, la supprimer
-- gérer les numéros Twilio
-- gérer les assistants Vapi
-- gérer les calendriers
-- suivre les coûts techniques (Vapi, Twilio, Anthropic...)
-- statistiques globales de la plateforme
-- suivi des appels de tous les clients
-- gestion des abonnements
-- gestion des utilisateurs
-- déploiement facilité d'un nouveau client
+**Implication d'architecture majeure :** ce dashboard a besoin d'un vrai stockage relationnel (entreprises, établissements, utilisateurs, abonnements, santé, centre d'actions...) — la base de données PostgreSQL, jusqu'ici prévue pour "MVP 3+", devient donc nécessaire dès ce sprint. Modèle détaillé (17 tables) dans `docs/architecture.md`. Stack : Next.js/TypeScript/Tailwind/shadcn/Prisma/Clerk (justification complète dans `docs/sprint5-conception.md`).
 
-**Implication d'architecture majeure :** ce dashboard a besoin d'un vrai stockage relationnel (entreprises, établissements, utilisateurs, abonnements...) — la base de données PostgreSQL, jusqu'ici prévue pour "MVP 3+", devient donc nécessaire dès ce sprint. Voir `docs/architecture.md`.
+**Conception UX finalisée le 2026-07-16** (`docs/sprint5-conception.md`) : le dashboard est organisé autour d'un centre d'actions ("qu'est-ce qui nécessite mon intervention aujourd'hui"), pas seulement de la consultation de données. Détail des écrans, du centre d'actions et des choix de conception dans ce document.
+
+**Prérequis d'infrastructure — action utilisateur nécessaire, non bloquante :** ni la base PostgreSQL de production ni le compte Clerk n'existent encore. Comme au Sprint 0, ces comptes ne bloquent pas le développement : tout ce qui ne dépend pas d'eux (schéma, migrations, code de la couche d'authentification, écrans avec données de démonstration) avance en parallèle. Voir `docs/sprint-log.md` pour le détail.
+
+**Tâches, dans l'ordre de dépendance validé par le fondateur (ne pas commencer une tâche P2 avant que les tâches ci-dessous soient fonctionnelles, testées et documentées) :**
+
+- [x] 50. Initialiser le projet Next.js du dashboard (TypeScript, Tailwind, shadcn/ui) — terminé le 2026-07-16
+- [x] 51. Modèle de données + centre d'actions : schéma Prisma des 17 tables, logique de calcul de santé (`evenements_sante`) et de création/résolution des items (`actions_requises`) — terminé le 2026-07-16. Schéma et logique pure vérifiés (17 tests) ; migration générée mais **pas encore appliquée** (pas de Postgres réel, voir tâche #1 ci-dessus)
+- [x] 52. Écran Vue d'ensemble (centre d'actions en section héro, statistiques clés, "Derniers appels", graphique 14 jours en dernier) — terminé et vérifié (capture d'écran) le 2026-07-16
+- [x] 53. Écran Entreprises — liste avec colonne Santé, tri "problèmes en premier", filtre "Nécessite une attention" + création d'une entreprise (bouton visuel, non fonctionnel sans base) — terminé le 2026-07-16
+- [x] 54. Écran Appels — historique consolidé, filtre "Échecs / à traiter", fiche détail en panneau latéral (drawer, timeline, routes interceptantes Next.js) — terminé et vérifié visuellement le 2026-07-16
+- [x] 55. Écran Santé plateforme — état des 7 services critiques, lien vers les entreprises impactées — terminé le 2026-07-16
+- [x] 56. Écran Finances (renommé depuis Coûts) — marge brute en hero, coûts fixes vs variables, revenus estimés, mention "estimé" explicite — terminé et vérifié visuellement le 2026-07-16
+- [x] 57. Invitations utilisateurs — couche d'abstraction Clerk (`src/auth/`), écran Utilisateurs avec données de démonstration — terminé le 2026-07-16. Synchronisation webhook écrite mais non testable sans compte Clerk réel (tâche #2) ; `clerkMiddleware()`/`proxy.ts` restent à ajouter avant une vraie mise en service (couplé à l'écran `/login`, pas encore construit)
+- [x] 58. Écran Détail entreprise (onglets : vue d'ensemble par défaut avec rentabilité, établissements, numéros & assistants, calendriers, appels, abonnement, utilisateurs) — terminé le 2026-07-16 (les 5 onglets secondaires restent en placeholder, hors périmètre P1)
+- [x] 59. Brancher les données réelles de Barber Concept (première entreprise créée via le dashboard, pas insérée à la main) — terminé le 2026-07-16. Base PostgreSQL réelle (Supabase) branchée, migration `0001_init` appliquée, bouton "+ Nouvelle entreprise" rendu fonctionnel (server action Prisma), Barber Concept créé via ce formulaire (pas en SQL manuel)
+- [x] 60. Démonstration de bout en bout : créer une entreprise, vérifier qu'elle apparaît partout où attendu — terminé le 2026-07-16, vérifié en base et via les fonctions de lecture (`getEntreprisesListe`/`getEntrepriseDetail`). **Vérifié visuellement dans le navigateur par le fondateur le 2026-07-16 : test concluant** (Barber Concept créé via le formulaire, apparaît dans la liste, fiche détail fonctionnelle, données persistées dans Supabase)
+- [x] 61. Suppression d'une entreprise depuis le dashboard — terminé le 2026-07-16. Bouton "Supprimer" sur la fiche détail (entreprises réelles uniquement, pas les entreprises de démonstration), confirmation par saisie du nom exact, suppression en cascade manuelle côté serveur (le schéma n'a pas de `ON DELETE CASCADE`, tout est `RESTRICT` par défaut — voir `entreprises/actions.ts`).
+
+**Statut au 2026-07-16 : Sprint 5 clôturé.** Tous les écrans P1 sont fonctionnels, testés, documentés et vérifiés visuellement (y compris par le fondateur en conditions réelles). La base PostgreSQL réelle est branchée (Supabase) et la première vraie entreprise (Barber Concept) est créée via le dashboard. Écran Entreprises et Finances affichent encore un mélange données de démo + données réelles le temps que les autres écrans (Vue d'ensemble, Finances, Santé plateforme) soient branchés sur la vraie base.
+
+**Décision du fondateur (2026-07-16) : le branchement des appels réels Vapi/Twilio vers la table `Appels` (et par extension la fin du mélange démo/réel sur Vue d'ensemble/Finances/Santé plateforme) est volontairement différé à une tâche dédiée, après la construction du Dashboard Client (Sprint 6)** — pour respecter l'ordre de dépendance de la roadmap plutôt que d'interrompre le Sprint 6 en cours de route.
+
+**Différé (P2+, pas avant que tout ce qui précède soit fonctionnel) :** page globale Abonnements (attend l'intégration Stripe), historique 30 jours façon uptime sur Santé plateforme, hiérarchie visuelle fine des colonnes secondaires.
 
 ## Sprint 6 — Dashboard Client
 

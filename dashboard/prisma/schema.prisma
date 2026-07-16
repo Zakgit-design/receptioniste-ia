@@ -1,0 +1,420 @@
+// Schéma de base de données — Dashboard Administrateur (Sprint 5)
+// Source de vérité : docs/architecture.md, section "Modèle de données — PostgreSQL (Sprint 5)"
+//
+// Convention : modèles en PascalCase singulier idiomatique, chacun mappé (@@map)
+// vers le nom de table français en snake_case documenté, et chaque champ mappé
+// (@map) vers son nom de colonne snake_case documenté — pour que la base de
+// données corresponde exactement à la documentation tout en gardant un code
+// TypeScript idiomatique.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// --- Enums (champs à valeurs fermées déjà listés dans docs/architecture.md) ---
+
+enum StatutEntreprise {
+  essai
+  actif
+  suspendu
+  resilie
+
+  @@map("statut_entreprise")
+}
+
+enum RoleUtilisateur {
+  admin_plateforme
+  proprietaire
+  employe
+
+  @@map("role_utilisateur")
+}
+
+enum StatutAgentIA {
+  actif
+  inactif
+
+  @@map("statut_agent_ia")
+}
+
+enum StatutRendezVous {
+  confirme
+  annule
+  termine
+  absent
+
+  @@map("statut_rendez_vous")
+}
+
+enum StatutAppel {
+  termine
+  echoue
+  transfere
+
+  @@map("statut_appel")
+}
+
+enum StatutIntegration {
+  connecte
+  deconnecte
+  erreur
+
+  @@map("statut_integration")
+}
+
+enum StatutAbonnement {
+  actif
+  impaye
+  resilie
+
+  @@map("statut_abonnement")
+}
+
+enum StatutFacture {
+  payee
+  en_attente
+  echouee
+
+  @@map("statut_facture")
+}
+
+enum ServicePlateforme {
+  render
+  twilio
+  vapi
+  anthropic
+  google_calendar
+  base_de_donnees
+  webhooks
+
+  @@map("service_plateforme")
+}
+
+enum StatutSante {
+  ok
+  degrade
+  echec
+
+  @@map("statut_sante")
+}
+
+enum TypeActionRequise {
+  technique
+  business
+  securite
+
+  @@map("type_action_requise")
+}
+
+enum GraviteActionRequise {
+  critique
+  a_surveiller
+
+  @@map("gravite_action_requise")
+}
+
+enum StatutActionRequise {
+  nouveau
+  traite
+  ignore
+  resolu_automatiquement
+
+  @@map("statut_action_requise")
+}
+
+// --- Modèles ---
+
+model Entreprise {
+  id                  String           @id @default(uuid())
+  nom                 String
+  secteur             String
+  statut              StatutEntreprise @default(essai)
+  emailContact        String?          @map("email_contact")
+  telephoneContact    String?          @map("telephone_contact")
+  clerkOrganizationId String?          @unique @map("clerk_organization_id")
+  planId              String?          @map("plan_id")
+  createdAt           DateTime         @default(now()) @map("created_at")
+
+  etablissements  Etablissement[]
+  utilisateurs    Utilisateur[]
+  agentsIA        AgentIA[]
+  services        Service[]
+  clientsFinaux   ClientFinal[]
+  integrations    Integration[]
+  abonnement      Abonnement?
+  notifications   Notification[]
+  evenementsSante EvenementSante[]
+  actionsRequises ActionRequise[]
+
+  @@map("entreprises")
+}
+
+model Etablissement {
+  id               String   @id @default(uuid())
+  entrepriseId     String   @map("entreprise_id")
+  nom              String
+  adresse          String
+  fuseauHoraire    String   @map("fuseau_horaire")
+  googleCalendarId String?  @map("google_calendar_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+
+  entreprise     Entreprise      @relation(fields: [entrepriseId], references: [id])
+  agentsIA       AgentIA[]
+  disponibilites Disponibilite[]
+  rendezVous     RendezVous[]
+
+  @@index([entrepriseId])
+  @@map("etablissements")
+}
+
+model Utilisateur {
+  id           String          @id @default(uuid())
+  clerkUserId  String          @unique @map("clerk_user_id")
+  email        String
+  nom          String
+  role         RoleUtilisateur
+  entrepriseId String?         @map("entreprise_id")
+  createdAt    DateTime        @default(now()) @map("created_at")
+
+  entreprise    Entreprise?    @relation(fields: [entrepriseId], references: [id])
+  notifications Notification[]
+
+  @@index([entrepriseId])
+  @@map("utilisateurs")
+}
+
+model AgentIA {
+  id              String        @id @default(uuid())
+  entrepriseId    String        @map("entreprise_id")
+  etablissementId String        @map("etablissement_id")
+  vapiAssistantId String?       @map("vapi_assistant_id")
+  numeroTwilio    String?       @map("numero_twilio")
+  statut          StatutAgentIA @default(actif)
+  configVoix      Json          @map("config_voix")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  entreprise    Entreprise    @relation(fields: [entrepriseId], references: [id])
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  appels        Appel[]
+
+  @@index([entrepriseId])
+  @@index([etablissementId])
+  @@map("agents_ia")
+}
+
+model Service {
+  id           String  @id @default(uuid())
+  entrepriseId String  @map("entreprise_id")
+  nom          String
+  dureeMinutes Int     @map("duree_minutes")
+  prix         Decimal @db.Decimal(10, 2)
+  description  String?
+
+  entreprise Entreprise   @relation(fields: [entrepriseId], references: [id])
+  rendezVous RendezVous[]
+
+  @@index([entrepriseId])
+  @@map("services")
+}
+
+model Disponibilite {
+  id              String   @id @default(uuid())
+  etablissementId String   @map("etablissement_id")
+  jourSemaine     Int      @map("jour_semaine")
+  heureDebut      DateTime @map("heure_debut") @db.Time()
+  heureFin        DateTime @map("heure_fin") @db.Time()
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+
+  @@index([etablissementId])
+  @@map("disponibilites")
+}
+
+model RendezVous {
+  id                    String           @id @default(uuid())
+  etablissementId       String           @map("etablissement_id")
+  serviceId             String           @map("service_id")
+  clientFinalId         String           @map("client_final_id")
+  googleCalendarEventId String?          @map("google_calendar_event_id")
+  debut                 DateTime
+  dureeMinutes          Int              @map("duree_minutes")
+  statut                StatutRendezVous @default(confirme)
+  createdAt             DateTime         @default(now()) @map("created_at")
+
+  etablissement Etablissement @relation(fields: [etablissementId], references: [id])
+  service       Service       @relation(fields: [serviceId], references: [id])
+  clientFinal   ClientFinal   @relation(fields: [clientFinalId], references: [id])
+  appels        Appel[]
+
+  @@index([etablissementId])
+  @@index([serviceId])
+  @@index([clientFinalId])
+  @@map("rendez_vous")
+}
+
+model ClientFinal {
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
+  telephone    String
+  nom          String?
+  notes        String?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  entreprise Entreprise   @relation(fields: [entrepriseId], references: [id])
+  rendezVous RendezVous[]
+
+  @@index([entrepriseId])
+  @@map("clients_finaux")
+}
+
+model Appel {
+  id                String      @id @default(uuid())
+  agentIaId         String      @map("agent_ia_id")
+  vapiCallId        String?     @unique @map("vapi_call_id")
+  telephoneAppelant String      @map("telephone_appelant")
+  debut             DateTime
+  fin               DateTime?
+  dureeSecondes     Int?        @map("duree_secondes")
+  statut            StatutAppel
+  coutDetail        Json?       @map("cout_detail")
+  urlEnregistrement String?     @map("url_enregistrement")
+  rendezVousId      String?     @map("rendez_vous_id")
+  smsEnvoye         Boolean     @default(false) @map("sms_envoye")
+  outilsUtilises    Json?       @map("outils_utilises")
+  erreurs           Json?
+  createdAt         DateTime    @default(now()) @map("created_at")
+
+  agentIA      AgentIA       @relation(fields: [agentIaId], references: [id])
+  rendezVous   RendezVous?   @relation(fields: [rendezVousId], references: [id])
+  conversation Conversation?
+
+  @@index([agentIaId])
+  @@index([rendezVousId])
+  @@map("appels")
+}
+
+model Conversation {
+  id                String   @id @default(uuid())
+  appelId           String   @unique @map("appel_id")
+  transcript        Json?
+  resume            String?
+  structuredOutputs Json?    @map("structured_outputs")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  appel Appel @relation(fields: [appelId], references: [id])
+
+  @@map("conversations")
+}
+
+model Integration {
+  id           String            @id @default(uuid())
+  entrepriseId String            @map("entreprise_id")
+  type         String
+  config       Json
+  statut       StatutIntegration @default(connecte)
+  connectedAt  DateTime?         @map("connected_at")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+
+  @@index([entrepriseId])
+  @@map("integrations")
+}
+
+model Abonnement {
+  id                   String           @id @default(uuid())
+  entrepriseId         String           @unique @map("entreprise_id")
+  nomPlan              String           @map("nom_plan")
+  prix                 Decimal          @db.Decimal(10, 2)
+  cycleFacturation     String           @map("cycle_facturation")
+  statut               StatutAbonnement @default(actif)
+  stripeSubscriptionId String?          @map("stripe_subscription_id")
+  finPeriodeCourante   DateTime?        @map("fin_periode_courante")
+  createdAt            DateTime         @default(now()) @map("created_at")
+
+  entreprise Entreprise @relation(fields: [entrepriseId], references: [id])
+  factures   Facture[]
+
+  @@map("abonnements")
+}
+
+model Facture {
+  id              String        @id @default(uuid())
+  abonnementId    String        @map("abonnement_id")
+  montant         Decimal       @db.Decimal(10, 2)
+  statut          StatutFacture @default(en_attente)
+  emiseLe         DateTime      @map("emise_le")
+  payeeLe         DateTime?     @map("payee_le")
+  stripeInvoiceId String?       @map("stripe_invoice_id")
+
+  abonnement Abonnement @relation(fields: [abonnementId], references: [id])
+
+  @@index([abonnementId])
+  @@map("factures")
+}
+
+model Notification {
+  id            String    @id @default(uuid())
+  utilisateurId String?   @map("utilisateur_id")
+  entrepriseId  String?   @map("entreprise_id")
+  type          String
+  message       String
+  luLe          DateTime? @map("lu_le")
+  createdAt     DateTime  @default(now()) @map("created_at")
+
+  utilisateur Utilisateur? @relation(fields: [utilisateurId], references: [id])
+  entreprise  Entreprise?  @relation(fields: [entrepriseId], references: [id])
+
+  @@index([utilisateurId])
+  @@index([entrepriseId])
+  @@map("notifications")
+}
+
+model EvenementSante {
+  id           String            @id @default(uuid())
+  service      ServicePlateforme
+  entrepriseId String?           @map("entreprise_id")
+  statut       StatutSante
+  latenceMs    Int?              @map("latence_ms")
+  detail       Json?
+  createdAt    DateTime          @default(now()) @map("created_at")
+
+  entreprise Entreprise? @relation(fields: [entrepriseId], references: [id])
+
+  @@index([entrepriseId])
+  @@index([service])
+  @@map("evenements_sante")
+}
+
+model ActionRequise {
+  id                String               @id @default(uuid())
+  type              TypeActionRequise
+  gravite           GraviteActionRequise
+  titre             String
+  description       String
+  entrepriseId      String?              @map("entreprise_id")
+  actionRecommandee Json?                @map("action_recommandee")
+  statut            StatutActionRequise  @default(nouveau)
+  resoluLe          DateTime?            @map("resolu_le")
+  createdAt         DateTime             @default(now()) @map("created_at")
+
+  entreprise Entreprise? @relation(fields: [entrepriseId], references: [id])
+
+  @@index([entrepriseId])
+  @@index([statut])
+  @@map("actions_requises")
+}
+
+model CoutFixePlateforme {
+  id             String   @id @default(uuid())
+  fournisseur    String
+  montantMensuel Decimal  @map("montant_mensuel") @db.Decimal(10, 2)
+  devise         String
+  actifDepuis    DateTime @map("actif_depuis")
+
+  @@map("couts_fixes_plateforme")
+}
