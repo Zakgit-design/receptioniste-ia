@@ -436,6 +436,14 @@ Vérifié (session principale, après le rapport de l'agent) : base repartie pro
 
 Fichiers créés/modifiés : `scripts/seed-services-barber-concept.js`, `src/call-webhook.js`, `dashboard/src/app/(client)/app/appels/data.ts`, `dashboard/src/app/(client)/app/data.ts`, `dashboard/src/app/(client)/app/etablissements/data.ts`, `dashboard/src/lib/appels-client.ts`, `dashboard/src/lib/scope-client.ts`.
 
+### Tâche #74 — `sms_envoye`/`erreurs` fidèles au résultat réel du SMS (2026-07-17)
+
+Découverte empirique confirmée (API Vapi, plusieurs vrais appels passés) : le résultat de l'outil personnalisé `send_appointment_confirmation_sms` (envoyé pendant l'appel via `/webhooks/vapi-tools`, distinct du webhook de fin d'appel) apparaît bien dans `artifact.messages` comme un `tool_call_result`, même mécanisme que `google_calendar_tool` (tâche #73). `src/call-webhook.js` retrouve désormais ce résultat (`resoudreResultatSms`) : `sms_envoye = true` si `status: 'sent'` ou `'skipped'`/`already_sent` (jugé comme "envoyé" — le client a bien reçu son SMS, ce n'est pas un échec) ; `false` sinon. `erreurs` reçoit une phrase compréhensible en français en cas d'échec réel — traduction des codes Twilio les plus courants (numéro invalide, désabonnement, injoignable...) plutôt que d'afficher un code brut, repli générique pour un code non répertorié. Cas réel supplémentaire trouvé en inspectant de vrais appels : un timeout de communication Vapi↔backend (cold start Render) fait que Vapi renvoie son propre message d'erreur de transport à la place du JSON attendu — traité comme un échec réel (le client n'a jamais reçu de SMS), pas ignoré silencieusement. Résolution isolée dans son propre bloc d'erreur, comme les tâches #72/#73 : ne peut jamais empêcher l'écriture `Appels`/`Conversations`/`RendezVous` déjà acquise.
+
+Vérifié en rejouant 3 scénarios réalistes contre le code déployé et la vraie base (SMS envoyé, SMS échoué avec code Twilio réel, timeout technique) : `sms_envoye`/`erreurs` corrects dans les 3 cas. Données de test nettoyées ensuite (0 ligne `appels`/`rendez_vous`/`clients_finaux`/`conversations`, 6 établissements + 15 services réels intacts, revérifié par la session principale). `dashboard` build/lint/27 tests au vert (aucun changement côté dashboard — colonnes et parsing déjà en place depuis le Sprint 6, revérifié par la session principale). Code poussé sur `origin/main` (commit `ea73014`), Render redéployé, `GET /health` reconfirmé 200.
+
+Fichiers modifiés : `src/call-webhook.js`.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
