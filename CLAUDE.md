@@ -1,7 +1,7 @@
 # Réceptionniste IA — Contexte projet
 
 ## Vision
-Plateforme SaaS d'agents IA téléphoniques pour petites entreprises (salons, restaurants, cabinets dentaires, cliniques, garages, instituts, cabinets médicaux, etc.). Premier produit : réceptionniste vocale IA. Client pilote : Barber Concept (Genève, 4 salons — Cornavin, Eaux-Vives, Jonction, Rive), pas la cible finale unique.
+Plateforme SaaS d'agents IA téléphoniques pour petites entreprises (salons, restaurants, cabinets dentaires, cliniques, garages, instituts, cabinets médicaux, etc.). Premier produit : réceptionniste vocale IA. Client pilote : Barber Concept (Suisse romande, 6 salons — Cornavin, Eaux-Vives, Jonction, Rive, Lausanne, Sion), pas la cible finale unique.
 
 **Pivot du 2026-07-16 :** la partie vocale (téléphonie, agenda, SMS) est terminée pour Barber Concept. La priorité devient maintenant la construction de la plateforme SaaS multi-entreprises elle-même — Dashboard Administrateur puis Dashboard Client — pensée dès le départ pour des dizaines puis des centaines d'entreprises clientes, jamais seulement pour Barber Concept. Voir `docs/architecture.md` (« Principe directeur ») et `docs/roadmap.md` (structure complète des sprints).
 
