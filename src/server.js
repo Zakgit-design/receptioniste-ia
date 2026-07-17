@@ -2,6 +2,7 @@ require('dotenv').config();
 
 const express = require('express');
 const { sendAppointmentConfirmationSms } = require('./sms');
+const { handleVapiCallEnded } = require('./call-webhook');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -40,6 +41,10 @@ app.post('/webhooks/vapi-tools', async (req, res) => {
 
   res.status(200).json({ results });
 });
+
+// Webhook appelé par Vapi à la fin de chaque appel (rapport de fin d'appel),
+// jamais pendant — voir src/call-webhook.js et docs/roadmap.md, tâche #72.
+app.post('/webhooks/vapi-call-ended', handleVapiCallEnded);
 
 // Ping périodique de notre propre URL publique pour éviter la mise en veille
 // du plan gratuit Render (qui endort le service après ~15 min sans requête
