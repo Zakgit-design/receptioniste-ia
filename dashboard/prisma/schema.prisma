@@ -171,6 +171,7 @@ model Etablissement {
   agentsIA                  AgentIA[]
   disponibilites            Disponibilite[]
   rendezVous                RendezVous[]
+  appels                    Appel[]
   assignations              AssignationEtablissement[]
 
   @@index([entrepriseId])
@@ -299,6 +300,13 @@ model ClientFinal {
 model Appel {
   id                String      @id @default(uuid())
   agentIaId         String      @map("agent_ia_id")
+  // Établissement réellement concerné par l'appel, déduit du rendez-vous pris
+  // (voir docs/architecture.md, section « Décision d'architecture — Branchement
+  // des appels réels »). Indépendant de `agentIA.etablissementId` : Barber
+  // Concept partage un seul agent/numéro pour ses 6 salons, donc l'agent ne
+  // suffit pas à savoir quel salon est concerné. Reste `null` (« non déterminé »)
+  // tant qu'aucune réservation n'a eu lieu pendant l'appel.
+  etablissementId   String?     @map("etablissement_id")
   vapiCallId        String?     @unique @map("vapi_call_id")
   telephoneAppelant String      @map("telephone_appelant")
   debut             DateTime
@@ -313,11 +321,13 @@ model Appel {
   erreurs           Json?
   createdAt         DateTime    @default(now()) @map("created_at")
 
-  agentIA      AgentIA       @relation(fields: [agentIaId], references: [id])
-  rendezVous   RendezVous?   @relation(fields: [rendezVousId], references: [id])
-  conversation Conversation?
+  agentIA       AgentIA        @relation(fields: [agentIaId], references: [id])
+  etablissement Etablissement? @relation(fields: [etablissementId], references: [id])
+  rendezVous    RendezVous?    @relation(fields: [rendezVousId], references: [id])
+  conversation  Conversation?
 
   @@index([agentIaId])
+  @@index([etablissementId])
   @@index([rendezVousId])
   @@map("appels")
 }

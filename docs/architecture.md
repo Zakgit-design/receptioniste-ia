@@ -81,6 +81,8 @@ Conséquence pour chaque décision technique : ne jamais optimiser uniquement po
 
 **Robustesse :** une panne d'écriture en base ne doit jamais faire échouer l'appel réel lui-même — ce n'est que de la donnée analytique pour les dashboards, pas une fonctionnalité vue par l'appelant (même principe que le keep-alive/filet de sécurité du Sprint 4). Idempotence via `appels.vapi_call_id` (déjà unique dans le schéma) pour ne jamais dupliquer un appel en cas de retry du webhook Vapi.
 
+**Conflit trouvé le 2026-07-17 entre cette décision et le schéma existant, résolu avant le début du code :** `AgentIA.etablissementId` est obligatoire (un agent = un seul salon fixe) — or Barber Concept partage un seul agent/numéro pour ses 6 salons, donc déduire l'établissement d'un appel via l'agent (comme le fait déjà le code du Sprint 6, `appels-client.ts`) fixerait arbitrairement tous les appels sur un seul salon, et empêcherait un responsable d'établissement de voir les appels de son salon. **Décision (fondateur) :** nouveau champ `Appel.etablissementId`, nullable, indépendant de `AgentIA` — rempli avec `rendezVous.etablissementId` quand une réservation a réellement eu lieu pendant l'appel, laissé `null` (« non déterminé ») sinon. Le code de scope/filtre du Sprint 6 qui lit aujourd'hui `agentIA.etablissementId` pour un appel (`appels-client.ts` et tout composant qui en dépend) doit être mis à jour pour lire ce nouveau champ directement sur `Appel`.
+
 ## Modules par phase
 
 **Téléphonie et voix (Sprints 1-4, terminés) :**
