@@ -1,14 +1,18 @@
 // Données réelles de la Vue d'ensemble du Dashboard Client — voir
-// docs/roadmap.md, tâche #66. Aucune donnée de démonstration (voir
-// docs/sprint6-conception.md, section 3) : tout vient de Postgres, scopé sur
-// les établissements autorisés de l'utilisateur connecté (voir
-// src/lib/scope-client.ts). Barber Concept n'a aujourd'hui aucun
-// établissement/agent/appel réel — cette fonction retourne alors des zéros et
-// des listes vides, affichés honnêtement par la page (pas de donnée inventée).
+// docs/roadmap.md, tâche #66, mis à jour tâche #73. Tout vient de Postgres,
+// scopé sur l'entreprise et les établissements autorisés de l'utilisateur
+// connecté (voir src/lib/scope-client.ts).
+//
+// **Mise à jour tâche #73 :** la répartition par établissement lit désormais
+// `Appel.etablissementId` directement (nullable — "non déterminé" si aucune
+// réservation n'a eu lieu), plus via l'établissement (arbitraire) de
+// l'agent — même correctif que `appels/data.ts`, voir ce fichier pour le
+// détail du scope entreprise vs établissement.
 
 import { prisma } from "@/lib/prisma";
 import type { Utilisateur } from "@/auth";
-import { getEtablissementIdsAutorises } from "@/lib/scope-client";
+import { getEtablissementIdsAutorises, getAgentIdsEntreprise } from "@/lib/scope-client";
+import { ETABLISSEMENT_NON_DETERMINE } from "@/lib/appels-client";
 import type { StatutAppel } from "@/generated/prisma/enums";
 
 export interface StatistiqueTuile {
@@ -91,7 +95,10 @@ const statistiquesVides: StatistiqueTuile[] = [
  * responsable d'établissement).
  */
 export async function getVueEnsembleClient(user: Utilisateur | null): Promise<VueEnsembleClient> {
-  const etablissementIds = await getEtablissementIdsAutorises(user);
+  const [etablissementIds, agentIds] = await Promise.all([
+    getEtablissementIdsAutorises(user),
+    getAgentIdsEntreprise(user),
+  ]);
 
   const vide: VueEnsembleClient = {
     statistiques: statistiquesVides,
@@ -103,20 +110,12 @@ export async function getVueEnsembleClient(user: Utilisateur | null): Promise<Vu
 
   const etablissements = await prisma.etablissement.findMany({
     where: { id: { in: etablissementIds } },
-    include: { agentsIA: { select: { id: true } } },
     orderBy: { nom: "asc" },
+    select: { id: true, nom: true },
   });
 
-  const nomEtablissementParAgent = new Map<string, string>();
-  for (const etablissement of etablissements) {
-    for (const agent of etablissement.agentsIA) {
-      nomEtablissementParAgent.set(agent.id, etablissement.nom);
-    }
-  }
-  const agentIds = [...nomEtablissementParAgent.keys()];
-
-  // Aucun assistant configuré sur aucun établissement autorisé : pas d'appel
-  // possible, seule la répartition par établissement (à zéro) a du sens.
+  // Aucun agent sur l'entreprise : pas d'appel possible, seule la répartition
+  // par établissement (à zéro) a du sens.
   if (agentIds.length === 0) {
     return {
       ...vide,
@@ -128,6 +127,12 @@ export async function getVueEnsembleClient(user: Utilisateur | null): Promise<Vu
       })),
     };
   }
+
+  // Restriction supplémentaire sur `Appel.etablissementId`, uniquement pour un
+  // responsable d'établissement (voir docs/architecture.md, tâche #70/#73, et
+  // le commentaire équivalent dans ./appels/data.ts).
+  const restrictionEtablissement =
+    user?.role === "responsable_etablissement" ? { etablissementId: { in: etablissementIds } } : {};
 
   const debutAujourdhui = debutJour(0);
   const debutHier = debutJour(-1);
@@ -142,16 +147,28 @@ export async function getVueEnsembleClient(user: Utilisateur | null): Promise<Vu
     appelsAttentionBruts,
     activiteRecenteBrute,
   ] = await Promise.all([
-    prisma.appel.count({ where: { agentIaId: { in: agentIds }, debut: { gte: debutAujourdhui } } }),
     prisma.appel.count({
-      where: { agentIaId: { in: agentIds }, debut: { gte: debutHier, lt: debutAujourdhui } },
-    }),
-    prisma.appel.count({
-      where: { agentIaId: { in: agentIds }, statut: "echoue", debut: { gte: debutAujourdhui } },
+      where: { agentIaId: { in: agentIds }, ...restrictionEtablissement, debut: { gte: debutAujourdhui } },
     }),
     prisma.appel.count({
       where: {
         agentIaId: { in: agentIds },
+        ...restrictionEtablissement,
+        debut: { gte: debutHier, lt: debutAujourdhui },
+      },
+    }),
+    prisma.appel.count({
+      where: {
+        agentIaId: { in: agentIds },
+        ...restrictionEtablissement,
+        statut: "echoue",
+        debut: { gte: debutAujourdhui },
+      },
+    }),
+    prisma.appel.count({
+      where: {
+        agentIaId: { in: agentIds },
+        ...restrictionEtablissement,
         statut: "echoue",
         debut: { gte: debutHier, lt: debutAujourdhui },
       },
@@ -166,12 +183,14 @@ export async function getVueEnsembleClient(user: Utilisateur | null): Promise<Vu
       },
     }),
     prisma.appel.findMany({
-      where: { agentIaId: { in: agentIds }, statut: "echoue" },
+      where: { agentIaId: { in: agentIds }, ...restrictionEtablissement, statut: "echoue" },
+      include: { etablissement: { select: { nom: true } } },
       orderBy: { debut: "desc" },
       take: LIMITE_ATTENTION,
     }),
     prisma.appel.findMany({
-      where: { agentIaId: { in: agentIds } },
+      where: { agentIaId: { in: agentIds }, ...restrictionEtablissement },
+      include: { etablissement: { select: { nom: true } } },
       orderBy: { debut: "desc" },
       take: LIMITE_ACTIVITE_RECENTE,
     }),
@@ -216,7 +235,7 @@ export async function getVueEnsembleClient(user: Utilisateur | null): Promise<Vu
 
   const appelsAttention: AppelAttention[] = appelsAttentionBruts.map((appel) => ({
     id: appel.id,
-    etablissementNom: nomEtablissementParAgent.get(appel.agentIaId) ?? "—",
+    etablissementNom: appel.etablissement?.nom ?? ETABLISSEMENT_NON_DETERMINE,
     telephoneAppelant: appel.telephoneAppelant,
     quandLabel: appel.debut.toLocaleString("fr-CH", {
       day: "2-digit",
@@ -228,25 +247,26 @@ export async function getVueEnsembleClient(user: Utilisateur | null): Promise<Vu
 
   const activiteRecente: ActiviteRecenteItem[] = activiteRecenteBrute.map((appel) => ({
     id: appel.id,
-    etablissementNom: nomEtablissementParAgent.get(appel.agentIaId) ?? "—",
+    etablissementNom: appel.etablissement?.nom ?? ETABLISSEMENT_NON_DETERMINE,
     resultat: resultatAppel(appel),
     statut: appel.statut,
     smsEnvoye: appel.smsEnvoye,
     dureeSecondes: appel.dureeSecondes,
   }));
 
-  // Répartition par établissement — même schéma qu'en amont (peu
-  // d'établissements au MVP, une requête par établissement reste simple à
-  // lire ; voir aussi ./etablissements/data.ts).
+  // Répartition par établissement — désormais via `Appel.etablissementId`
+  // directement (tâche #73), plus via l'agent (arbitraire, un seul agent
+  // partagé pour les 6 salons Barber Concept, voir docs/architecture.md).
   const statistiquesEtablissements: StatistiqueEtablissement[] = await Promise.all(
     etablissements.map(async (etablissement) => {
-      const agentIdsEtablissement = etablissement.agentsIA.map((agent) => agent.id);
       const [appelsEtablissement, rendezVousEtablissement] = await Promise.all([
-        agentIdsEtablissement.length > 0
-          ? prisma.appel.count({
-              where: { agentIaId: { in: agentIdsEtablissement }, debut: { gte: debutAujourdhui } },
-            })
-          : Promise.resolve(0),
+        prisma.appel.count({
+          where: {
+            agentIaId: { in: agentIds },
+            etablissementId: etablissement.id,
+            debut: { gte: debutAujourdhui },
+          },
+        }),
         prisma.rendezVous.count({
           where: { etablissementId: etablissement.id, createdAt: { gte: debutAujourdhui } },
         }),

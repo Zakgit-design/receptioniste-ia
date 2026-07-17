@@ -41,3 +41,22 @@ export async function getEtablissementIdsAutorises(
   });
   return etablissements.map((etablissement) => etablissement.id);
 }
+
+// Un `Appel` est rattaché à un `AgentIA` (`agentIaId`), pas directement à une
+// entreprise — et `AgentIA.etablissementId` n'est plus une source fiable pour
+// savoir quel établissement un appel concerne (Barber Concept partage un seul
+// agent/numéro pour ses 6 salons, voir docs/architecture.md, tâche #70).
+// Cette fonction donne donc le scope d'entreprise correct pour retrouver
+// "tous les appels de mon entreprise", indépendamment de l'établissement
+// arbitraire de l'agent — à combiner ensuite, si besoin, avec une restriction
+// supplémentaire sur `Appel.etablissementId` via `getEtablissementIdsAutorises`
+// (nécessaire uniquement pour un responsable d'établissement, qui ne doit pas
+// voir les appels d'un autre établissement ni ceux "non déterminés").
+export async function getAgentIdsEntreprise(user: Utilisateur | null): Promise<string[]> {
+  if (!user || !user.entrepriseId) return [];
+  const agents = await prisma.agentIA.findMany({
+    where: { entrepriseId: user.entrepriseId },
+    select: { id: true },
+  });
+  return agents.map((agent) => agent.id);
+}

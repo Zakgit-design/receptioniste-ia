@@ -14,11 +14,19 @@ export interface EtablissementOption {
   nom: string;
 }
 
+// Libellé affiché quand `Appel.etablissementId` est `null` — l'appel n'a pas
+// abouti à une réservation permettant de déduire le salon concerné (Barber
+// Concept partage un seul numéro/agenda pour ses 6 salons, voir
+// docs/architecture.md). Même principe honnête que "Non renseigné" pour la
+// colonne Collaborateur de l'écran Rendez-vous (tâche #68) : pas de salon
+// inventé.
+export const ETABLISSEMENT_NON_DETERMINE = "Non déterminé";
+
 export interface AppelListeItemClient {
   id: string;
   heure: string;
   debutTimestamp: number;
-  etablissementId: string;
+  etablissementId: string | null;
   etablissementNom: string;
   telephoneAppelant: string;
   dureeSecondes: number | null;

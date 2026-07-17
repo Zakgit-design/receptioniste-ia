@@ -1,11 +1,19 @@
 // Données réelles de l'écran Appels du Dashboard Client — voir
-// docs/roadmap.md, tâche #67. Comme les tâches #63/#66, aucune donnée de
-// démonstration : tout vient de Postgres, scopé sur les établissements
-// autorisés de l'utilisateur connecté (voir src/lib/scope-client.ts).
-// Barber Concept n'a aujourd'hui aucun appel réel en base (branchement
-// Vapi/Twilio différé, voir docs/sprint6-conception.md, section 3) — ces
-// fonctions retournent alors des listes vides, affichées honnêtement par la
-// page.
+// docs/roadmap.md, tâche #67, mis à jour tâche #73. Tout vient de Postgres,
+// scopé sur l'entreprise et les établissements autorisés de l'utilisateur
+// connecté.
+//
+// **Mise à jour tâche #73 :** l'établissement d'un appel se lit désormais
+// directement sur `Appel.etablissementId` (nullable — "Non déterminé" si
+// aucune réservation n'a eu lieu pendant l'appel), plus via
+// `agentIA.etablissementId` (fixe, arbitraire depuis la tâche #71 — voir
+// docs/architecture.md, section « Décision d'architecture — Branchement des
+// appels réels »). Le scope "quels appels m'appartiennent" reste basé sur les
+// agents de mon entreprise (`getAgentIdsEntreprise`, indépendant de
+// l'établissement de l'agent) ; une restriction supplémentaire sur
+// `etablissementId` n'est appliquée que pour un responsable d'établissement,
+// qui ne doit voir ni les appels d'un autre établissement, ni les appels "non
+// déterminés" (potentiellement d'un autre salon).
 //
 // Types et petites fonctions pures partagées avec les composants client
 // (`appels-table-client.tsx`, `call-detail-client.tsx`) vivent dans
@@ -15,10 +23,11 @@
 
 import { prisma } from "@/lib/prisma";
 import type { Utilisateur } from "@/auth";
-import { getEtablissementIdsAutorises } from "@/lib/scope-client";
+import { getEtablissementIdsAutorises, getAgentIdsEntreprise } from "@/lib/scope-client";
 import type { OutilAppelUtilise, ErreurAppel } from "@/lib/call-timeline";
 import {
   resultatAppel,
+  ETABLISSEMENT_NON_DETERMINE,
   type EtablissementOption,
   type AppelListeItemClient,
   type AppelDetailClient,
@@ -72,38 +81,39 @@ function parseTranscription(json: unknown): LigneTranscriptionAppel[] {
 }
 
 /**
- * Établissements autorisés + agents IA associés, pour scoper les requêtes
- * `Appel` ci-dessous (un appel est rattaché à un `AgentIA`, pas directement à
- * un établissement — voir docs/architecture.md).
+ * Établissements autorisés + agents de l'entreprise, pour scoper les
+ * requêtes `Appel` ci-dessous. Deux notions différentes, volontairement
+ * séparées (voir commentaire en tête de fichier) :
+ * - `agentIds` : tous les agents de MON entreprise (isolation multi-tenant),
+ *   indépendant de l'établissement arbitraire de l'agent.
+ * - `restrictionEtablissement` : filtre Prisma supplémentaire sur
+ *   `Appel.etablissementId`, appliqué uniquement pour un responsable
+ *   d'établissement (qui ne doit voir ni un autre établissement, ni un appel
+ *   "non déterminé").
  */
-async function getEtablissementsEtAgents(user: Utilisateur | null) {
-  const etablissementIds = await getEtablissementIdsAutorises(user);
-  if (etablissementIds.length === 0) {
-    return {
-      etablissements: [] as EtablissementOption[],
-      agentIds: [] as string[],
-      etablissementParAgent: new Map<string, EtablissementOption>(),
-    };
-  }
+async function getScopeAppelsClient(user: Utilisateur | null) {
+  const [etablissementIds, agentIds] = await Promise.all([
+    getEtablissementIdsAutorises(user),
+    getAgentIdsEntreprise(user),
+  ]);
+
+  const vide = {
+    etablissements: [] as EtablissementOption[],
+    agentIds: [] as string[],
+    restrictionEtablissement: {},
+  };
+  if (etablissementIds.length === 0 || agentIds.length === 0) return vide;
 
   const etablissements = await prisma.etablissement.findMany({
     where: { id: { in: etablissementIds } },
-    include: { agentsIA: { select: { id: true } } },
     orderBy: { nom: "asc" },
+    select: { id: true, nom: true },
   });
 
-  const etablissementParAgent = new Map<string, EtablissementOption>();
-  for (const etablissement of etablissements) {
-    for (const agent of etablissement.agentsIA) {
-      etablissementParAgent.set(agent.id, { id: etablissement.id, nom: etablissement.nom });
-    }
-  }
+  const restrictionEtablissement =
+    user?.role === "responsable_etablissement" ? { etablissementId: { in: etablissementIds } } : {};
 
-  return {
-    etablissements: etablissements.map((etablissement) => ({ id: etablissement.id, nom: etablissement.nom })),
-    agentIds: [...etablissementParAgent.keys()],
-    etablissementParAgent,
-  };
+  return { etablissements, agentIds, restrictionEtablissement };
 }
 
 /**
@@ -114,59 +124,56 @@ async function getEtablissementsEtAgents(user: Utilisateur | null) {
 export async function getAppelsListeClient(
   user: Utilisateur | null
 ): Promise<{ etablissements: EtablissementOption[]; appels: AppelListeItemClient[] }> {
-  const { etablissements, agentIds, etablissementParAgent } = await getEtablissementsEtAgents(user);
+  const { etablissements, agentIds, restrictionEtablissement } = await getScopeAppelsClient(user);
   if (agentIds.length === 0) return { etablissements, appels: [] };
 
   const appels = await prisma.appel.findMany({
-    where: { agentIaId: { in: agentIds } },
+    where: { agentIaId: { in: agentIds }, ...restrictionEtablissement },
+    include: { etablissement: { select: { id: true, nom: true } } },
     orderBy: { debut: "desc" },
   });
 
   return {
     etablissements,
-    appels: appels.map((appel) => {
-      const etablissement = etablissementParAgent.get(appel.agentIaId);
-      return {
-        id: appel.id,
-        heure: appel.debut.toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" }),
-        debutTimestamp: appel.debut.getTime(),
-        etablissementId: etablissement?.id ?? "",
-        etablissementNom: etablissement?.nom ?? "—",
-        telephoneAppelant: appel.telephoneAppelant,
-        dureeSecondes: appel.dureeSecondes,
-        statut: appel.statut,
-        resultat: resultatAppel(appel),
-        smsEnvoye: appel.smsEnvoye,
-        rendezVousId: appel.rendezVousId,
-      };
-    }),
+    appels: appels.map((appel) => ({
+      id: appel.id,
+      heure: appel.debut.toLocaleTimeString("fr-CH", { hour: "2-digit", minute: "2-digit" }),
+      debutTimestamp: appel.debut.getTime(),
+      etablissementId: appel.etablissementId,
+      etablissementNom: appel.etablissement?.nom ?? ETABLISSEMENT_NON_DETERMINE,
+      telephoneAppelant: appel.telephoneAppelant,
+      dureeSecondes: appel.dureeSecondes,
+      statut: appel.statut,
+      resultat: resultatAppel(appel),
+      smsEnvoye: appel.smsEnvoye,
+      rendezVousId: appel.rendezVousId,
+    })),
   };
 }
 
 /**
  * Fiche détail d'un appel — retourne `null` si l'appel n'existe pas ou n'est
  * pas dans le périmètre de l'utilisateur connecté (aucune fuite inter-
- * établissement/entreprise possible : le filtre `agentIaId in agentIds` fait
- * partie de la requête elle-même).
+ * établissement/entreprise possible : le filtre `agentIaId in agentIds`
+ * — et, pour un responsable d'établissement, la restriction sur
+ * `etablissementId` — font partie de la requête elle-même).
  */
 export async function getAppelDetailClient(
   user: Utilisateur | null,
   id: string
 ): Promise<AppelDetailClient | null> {
-  const { agentIds, etablissementParAgent } = await getEtablissementsEtAgents(user);
+  const { agentIds, restrictionEtablissement } = await getScopeAppelsClient(user);
   if (agentIds.length === 0) return null;
 
   const appel = await prisma.appel.findFirst({
-    where: { id, agentIaId: { in: agentIds } },
-    include: { conversation: true },
+    where: { id, agentIaId: { in: agentIds }, ...restrictionEtablissement },
+    include: { conversation: true, etablissement: { select: { nom: true } } },
   });
   if (!appel) return null;
 
-  const etablissement = etablissementParAgent.get(appel.agentIaId);
-
   return {
     id: appel.id,
-    etablissementNom: etablissement?.nom ?? "—",
+    etablissementNom: appel.etablissement?.nom ?? ETABLISSEMENT_NON_DETERMINE,
     telephoneAppelant: appel.telephoneAppelant,
     dureeSecondes: appel.dureeSecondes,
     statut: appel.statut,
