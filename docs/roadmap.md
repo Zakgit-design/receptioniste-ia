@@ -175,7 +175,7 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 **Hors périmètre de ce chantier (voir cadrage complet dans `docs/sprint-log.md`) :** branchement de Vue d'ensemble/Finances/Santé plateforme (admin) sur la vraie base ; `evenements_sante`/`actions_requises` ; support de plusieurs numéros Twilio simultanés ; Get Time/notion de "collaborateur" ; migration d'hébergement (tâches #47-49).
 
 - [x] 69. Décisions d'architecture actées et documentées (connexion backend↔Postgres, résolution établissement par appel) — **terminé le 2026-07-17**, voir `docs/architecture.md`
-- [ ] 70. Connexion technique du backend Express à la base Postgres (Supabase), sans logique métier — critère : écriture de test en base sans casser le service existant sur un vrai appel
+- [x] 70. Connexion technique du backend Express à la base Postgres (Supabase), sans logique métier — **terminé le 2026-07-17**, voir `docs/sprint-log.md`
 - [ ] 71. Création de l'unique ligne `agents_ia` réelle correspondant au numéro/assistant Barber Concept — critère : un appel de test réel est correctement rattaché à "Barber Concept"
 - [ ] 72. Nouveau webhook Vapi "fin d'appel" → écriture `Appels` + `Conversations` après le raccrochage (jamais pendant) — critère : un appel de test réel fait apparaître une ligne correcte dans l'écran Appels du Dashboard Client
 - [ ] 73. Écriture `ClientsFinaux` + `RendezVous` quand une réservation a réellement eu lieu, liaison `appels.rendez_vous_id`, établissement déduit du RDV ou "non déterminé" sinon — critère : un appel de test avec réservation fait apparaître le RDV dans l'écran Rendez-vous, lié au bon appel

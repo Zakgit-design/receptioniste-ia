@@ -373,6 +373,17 @@ Statut : cadré par le product-manager le 2026-07-17, décisions d'architecture 
 
 **Risques signalés par le cadrage, à garder en tête pendant le développement :** panne d'écriture en base ne doit jamais faire échouer l'appel réel (donnée analytique, pas fonctionnelle) ; idempotence via `appels.vapi_call_id` (déjà unique) contre les doublons en cas de retry Vapi ; correspondance service prononcé à l'oral ↔ table `services` à surveiller pendant les tests réels.
 
+### Tâche #70 — Connexion technique backend Express ↔ Postgres (2026-07-17)
+
+**Conflit trouvé et résolu avant le code :** `AgentIA.etablissementId` est obligatoire dans le schéma — or Barber Concept partage un seul agent/numéro pour ses 6 salons, donc déduire l'établissement d'un appel via l'agent (comme le faisait déjà le code du Sprint 6, `appels-client.ts`) aurait fixé arbitrairement tous les appels sur un seul salon et cassé le scope d'un responsable d'établissement. Décision (fondateur, avant le code) : nouveau champ **`Appel.etablissementId`, nullable**, indépendant de `AgentIA` — sera rempli avec `rendezVous.etablissementId` quand une réservation a réellement eu lieu (tâche #73), laissé `null` sinon. Voir `docs/architecture.md` pour le détail.
+
+- **Schéma Prisma** (`dashboard/prisma/schema.prisma`) : champ `Appel.etablissementId` ajouté (nullable), relation optionnelle vers `Etablissement`, index cohérent avec le reste du fichier. Migration `20260717120846_appel_etablissement_id` générée et appliquée contre la vraie base Supabase (via `DIRECT_URL`, comme les migrations précédentes). 27 tests, lint, build du dashboard toujours au vert après coup.
+- **Backend Express** (racine du dépôt) : dépendance `pg` ajoutée, nouveau module `src/db.js` — pool de connexion réutilisable vers la même base Supabase, pooler transaction-mode (port 6543, comme le runtime du dashboard), aucun Prisma côté backend (requêtes SQL directes uniquement, cohérent avec la simplicité déjà pratiquée dans `src/sms.js`/`src/customers.js`). Les migrations restent la propriété exclusive de `dashboard/prisma/migrations`. `DATABASE_URL` ajoutée à `.env` (racine, non commité) et `.env.example`. Si la variable est absente, `pool` vaut `null` et rien ne plante (même principe que `PUBLIC_URL`/keep-alive dans `server.js`).
+- **Vérifié concrètement** : `SELECT count(*) FROM entreprises` (2 trouvées), écriture puis lecture puis suppression d'une ligne de test dans `evenements_sante`, toutes réussies contre la vraie base. `GET /health` répond toujours `200`, testé avec et sans `DATABASE_URL` configurée — le service ne plante jamais dans les deux cas.
+- **Aucune logique métier de webhook fin d'appel, aucune écriture réelle de ligne `Appels`/`Conversations`** — volontairement hors périmètre de cette tâche, viendra à la tâche #72.
+
+Sauvegardes : aucune (pas de modification de l'assistant Vapi dans cette tâche). Fichiers modifiés/créés : `dashboard/prisma/schema.prisma`, `dashboard/prisma/migrations/20260717120846_appel_etablissement_id/`, `src/db.js`, `.env.example`, `package.json`.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
