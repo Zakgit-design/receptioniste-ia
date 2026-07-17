@@ -398,6 +398,26 @@ Script ponctuel `scripts/seed-barber-concept.js` (connexion `pg` directe, cohér
 
 Vérifié : requête directe confirmant les 6 établissements et l'agent avec les bonnes valeurs ; build, lint, 27 tests du dashboard toujours au vert (aucun code applicatif modifié, uniquement insertion de données réelles).
 
+### Tâche #72 — Webhook Vapi "fin d'appel" → Appels/Conversations (2026-07-17)
+
+Nouvelle route `POST /webhooks/vapi-call-ended` (`src/call-webhook.js`), distincte de `/webhooks/vapi-tools`. Écrit après le raccrochage réel (jamais pendant), à partir du rapport de fin d'appel Vapi (`message.type` `"end-of-call-report"` — format vérifié empiriquement contre le SDK serveur officiel Vapi, pas deviné). Idempotent sur `appels.vapi_call_id`. Répond toujours 200 à Vapi, erreur d'écriture journalisée seulement (jamais bloquante). Agent résolu via `vapi_assistant_id` (une requête, pas de mécanisme multi-agent construit — un seul agent réel existe, tâche #71). Statut (enum à 3 valeurs, obligatoire) déduit de `endedReason` : fins normales → `termine`, `assistant-forwarded-call` → `transfere` (pas encore utilisé, Sprint 8), tout le reste (erreurs, silence, non abouti...) → `echoue`, choix documenté dans le code. `etablissementId`/`RendezVous`/`ClientFinal`/`sms_envoye` hors périmètre (tâches #73/#74).
+
+**Deux bugs réels trouvés et corrigés en testant :** `DATABASE_URL` manquait sur les variables d'environnement Render (ajoutée seulement en local à la tâche #70) — corrigé via l'API Render. `express.json()` limité à 100kb par défaut, trop bas pour un vrai rapport de fin d'appel (~140kb mesurés sur un appel de 2 minutes, à cause de la transcription mot-par-mot) — limite remontée à 5mb.
+
+**Limite trouvée pendant les tests, à connaître :** `/chat` ne déclenche PAS le rapport de fin d'appel (un chat texte n'est pas un objet `Call` chez Vapi, confirmé empiriquement) — un vrai appel téléphonique est nécessaire pour tester ce webhook, `/chat` ne suffit pas comme pour les fonctionnalités précédentes.
+
+Méthodologie respectée : assistant jetable créé, testé (1 vrai appel téléphonique + payloads synthétiques réalistes vérifiés contre le schéma SDK officiel), supprimé après usage. Sauvegarde avant modification de l'assistant de production (`docs/backups/vapi-assistant-before-call-ended-webhook.json`), PATCH avec l'objet complet, relecture après coup confirmant qu'aucun champ n'a disparu (prompt système et les 4 `toolIds` existants identiques avant/après — revérifié par la session principale).
+
+**Validation de bout en bout :** 2 vrais appels téléphoniques passés sur l'assistant de production réel (numéro +41 22 539 16 68) ont chacun produit une ligne `Appels` correcte en base (bon `agent_ia_id`, bon numéro appelant, statut honnête `echoue` — appels non aboutis côté destinataire, mais mécanisme confirmé fonctionnel de bout en bout, idempotence Vapi observée sur retry). Ces appels de test et toutes les données intermédiaires ont été nettoyés de la base ensuite (0 ligne `appels` en base après la tâche, revérifié par la session principale), conformément à la décision "les dashboards repartent à zéro à la mise en service" déjà actée pour ce chantier.
+
+**Déploiement réel effectué pendant cette tâche :** le code a été poussé sur `origin/main` (dépôt GitHub public existant) à deux reprises, pour que Render (qui déploie automatiquement depuis ce dépôt, mécanisme en place depuis le Sprint 4) exécute le nouveau webhook en conditions réelles — nécessaire pour la validation de bout en bout ci-dessus, aucun autre mécanisme de déploiement n'existe sur ce projet.
+
+Vérifié (session principale) : `dashboard` build/lint/27 tests toujours au vert (aucun changement côté dashboard, uniquement backend Express + config Vapi) ; `GET /health` Render répond 200 ; config `server`/`serverMessages` de l'assistant de production confirmée correcte par relecture directe de l'API Vapi.
+
+**Limite héritée pour la tâche #73 :** l'agent partagé Barber Concept garde un `etablissementId` arbitraire (Cornavin, tâche #71) — le code Sprint 6 (`appels-client.ts`) qui scope encore par `agentIA.etablissementId` continuera d'afficher les vrais appels sous Cornavin tant que la tâche #73 ne l'a pas mis à jour pour lire `Appel.etablissementId` directement, comme prévu dans `docs/architecture.md`.
+
+Fichiers créés/modifiés : `src/call-webhook.js`, `src/server.js`, `docs/backups/vapi-assistant-before-call-ended-webhook.json`.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
