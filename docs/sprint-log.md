@@ -353,6 +353,12 @@ En préparant la première connexion réelle, découverte que l'activation d'Org
 
 **À garder en tête pour tout futur compte admin plateforme** : `publicMetadata.role` doit être renseigné manuellement dans le dashboard Clerk (aucune UI dans le produit pour ça, décision déjà actée au Sprint 5) — sans quoi le rôle reste `null` dès que le compte n'a aucune organisation active.
 
+### Vérification visuelle du Sprint 6 (2026-07-17) et création des 4 rôles Clerk
+
+Vérification visuelle faite par le fondateur dans le navigateur : les 6 écrans du Dashboard Client s'affichent correctement (pages vides attendues, aucune donnée réelle branchée encore — normal). Sprint 6 considéré visuellement validé.
+
+En vérifiant l'état de l'instance Clerk (`clerk api /organization_roles`), confirmé que les 4 rôles personnalisés annoncés depuis la tâche #62 (`org:proprietaire`, `org:administrateur`, `org:responsable_etablissement`, `org:membre`) n'avaient en réalité jamais été créés — seuls les rôles natifs `org:admin`/`org:member` existaient, donc l'écran Équipe et accès retombait sur le repli à 2 rôles. Créés via l'API (`POST /organization_roles`, dry-run puis réel, confirmé avec le fondateur avant d'agir sur ce service tiers) avec les clés exactes attendues par `src/auth/roles.ts`. Les 6 rôles (4 personnalisés + 2 natifs) sont maintenant présents sur l'instance. Reste à vérifier : une vraie invitation avec l'un des 4 rôles, en conditions réelles.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
