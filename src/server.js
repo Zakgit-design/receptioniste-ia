@@ -7,7 +7,12 @@ const { handleVapiCallEnded } = require('./call-webhook');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-app.use(express.json());
+// Limite par défaut d'express.json() (100kb) trop basse pour le rapport de fin
+// d'appel Vapi : avec la confiance mot-par-mot de la transcription et le
+// prompt système répété dans `messages`, un vrai appel dépasse largement cette
+// taille (~140kb mesurés sur un appel de test de 2 minutes) — voir
+// docs/roadmap.md, tâche #72.
+app.use(express.json({ limit: '5mb' }));
 
 app.get('/health', (req, res) => {
   res.status(200).send('ok');
