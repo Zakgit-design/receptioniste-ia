@@ -444,6 +444,25 @@ Vérifié en rejouant 3 scénarios réalistes contre le code déployé et la vra
 
 Fichiers modifiés : `src/call-webhook.js`.
 
+### Tâche #75 — Vérification de bout en bout par le fondateur (2026-07-18) — Sprint 6bis clos
+
+Le fondateur a passé 3 vrais appels téléphoniques sur le numéro de production (+41 22 539 16 68), couvrant les scénarios prévus par le critère de validation :
+
+1. **Réservation complète** (144 secondes) : appel terminé proprement, établissement **Jonction** correctement identifié, `RendezVous` réel créé (service "Coupe classique", client "Michel Dupont", mercredi 22 juillet 14h00 heure de Zurich, événement Google Calendar réel), `Appels.rendez_vous_id` lié, **SMS réellement envoyé** (`sms_envoye: true`, aucune erreur).
+2. **Appel sans réservation** (question sur les horaires du salon des Eaux-Vives, 44 secondes) : terminé proprement, `etablissementId` honnêtement `null` ("non déterminé") — comportement attendu, aucune invention.
+3. **Appel court sans réservation** (18 secondes) : même comportement, `etablissementId` `null`.
+
+Les 3 appels ont un statut `termine` (aucun `echoue` dans cette passe précise — le chemin `echoue` avait déjà été validé séparément par 2 vrais appels non aboutis pendant la tâche #72). Vérifié directement en base par la session principale (requêtes SQL jointes reproduisant exactement la logique de `appels-client.ts`) : toutes les valeurs (établissement, RDV, service, client, SMS) cohérentes avec ce qui a été réellement dit/fait pendant les appels.
+
+**Écart trouvé pendant cette vérification, corrigé le jour même :** le résumé automatique (`analysis.summary`) généré par Vapi pour l'appel avec réservation était en **anglais** ("Michel Dupont successfully booked a classic haircut appointment...") — aucun `analysisPlan` n'avait jamais été configuré sur l'assistant, Vapi utilisant son prompt de résumé par défaut. Corrigé avec l'accord du fondateur : `analysisPlan.summaryPlan.messages` ajouté (consigne de résumé en français, factuel, 2-3 phrases, mentionnant salon/prestation/RDV). Sauvegarde avant modification (`docs/backups/vapi-assistant-before-analysis-plan-fr.json`), PATCH avec l'objet complet, tous les autres champs (prompt système, voix, transcripteur, `server`/`serverMessages`, les 4 `toolIds`) revérifiés identiques après coup. Jugé à faible risque (n'affecte que la génération de résumé post-appel, jamais la gestion de l'appel en temps réel) — appliqué directement sur l'assistant de production sans cycle complet sur assistant jetable, contrairement à la méthode habituelle pour des changements touchant la gestion d'appel en direct.
+
+**Sprint 6bis officiellement clos le 2026-07-18.** Les 7 tâches (#69-75) sont terminées, vérifiées, et validées par de vrais appels téléphoniques réels sur l'assistant de production. Les dashboards Admin et Client ont désormais de vraies données d'appels/rendez-vous pour Barber Concept, en plus des 6 établissements et 15 services réels créés en cours de route (tâches #71/#73).
+
+**Limites connues restantes, assumées et documentées en cours de route (pas des oublis) :**
+- Effet de bord de la tâche #71 : l'écran Établissements du Dashboard Client affiche encore le numéro/assistant uniquement sur Cornavin (agent partagé, `agentIA.etablissementId` arbitraire) — les 5 autres salons affichent "Non configuré".
+- Tarifs étudiants et prestations spécifiques par salon (Coupe Henok à Rive, locks/twists aux Eaux-Vives) non seedés dans `services` — une réservation réelle pour l'une de ces prestations spécifiques ne trouve pas de correspondance et reste "non déterminée".
+- Vue d'ensemble/Finances/Santé plateforme (admin) restent sur données de démo — sujet volontairement hors périmètre de ce chantier (voir clôture du Sprint 5).
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
