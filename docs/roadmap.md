@@ -178,7 +178,7 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 - [x] 70. Connexion technique du backend Express à la base Postgres (Supabase), sans logique métier — **terminé le 2026-07-17**, voir `docs/sprint-log.md`
 - [x] 71. Création de l'unique ligne `agents_ia` réelle correspondant au numéro/assistant Barber Concept — **terminé le 2026-07-17**, élargie pour inclure la création des 6 établissements réels (aucun n'existait encore en base), voir `docs/sprint-log.md`
 - [x] 72. Nouveau webhook Vapi "fin d'appel" → écriture `Appels` + `Conversations` après le raccrochage (jamais pendant) — **terminé le 2026-07-17**, validé par 2 vrais appels téléphoniques de bout en bout, voir `docs/sprint-log.md`
-- [ ] 73. Écriture `ClientsFinaux` + `RendezVous` quand une réservation a réellement eu lieu, liaison `appels.rendez_vous_id`, établissement déduit du RDV ou "non déterminé" sinon — critère : un appel de test avec réservation fait apparaître le RDV dans l'écran Rendez-vous, lié au bon appel
+- [x] 73. Écriture `ClientsFinaux` + `RendezVous` quand une réservation a réellement eu lieu, liaison `appels.rendez_vous_id`, établissement déduit du RDV ou "non déterminé" sinon — **terminé le 2026-07-17**, voir `docs/sprint-log.md` (limite honnête sur les prestations spécifiques par salon, non reconnues)
 - [ ] 74. `sms_envoye`/`erreurs` fidèles au résultat réel de l'outil SMS existant — critère : un appel avec SMS envoyé affiche `sms_envoye: true`, un échec affiche une erreur exploitable dans le drawer de détail
 - [ ] 75. Vérification de bout en bout avec plusieurs vrais appels (avec RDV, sans RDV, avec échec) — critère : validation visuelle du fondateur, fin des écrans à zéro pour Barber Concept
 
