@@ -384,6 +384,20 @@ Statut : cadré par le product-manager le 2026-07-17, décisions d'architecture 
 
 Sauvegardes : aucune (pas de modification de l'assistant Vapi dans cette tâche). Fichiers modifiés/créés : `dashboard/prisma/schema.prisma`, `dashboard/prisma/migrations/20260717120846_appel_etablissement_id/`, `src/db.js`, `.env.example`, `package.json`.
 
+### Tâche #71 — Agent IA réel + 6 établissements Barber Concept (2026-07-17)
+
+**Préalable découvert en vérifiant la base réelle :** aucun établissement n'existait encore pour Barber Concept (table `etablissements` vide), alors que `AgentIA.etablissementId` est obligatoire — impossible de créer l'agent sans au moins un établissement. Le fondateur a confirmé au passage que Barber Concept a **6 salons réels** (Cornavin, Eaux-Vives, Jonction, Rive, Lausanne, Sion) et non 4 comme l'indiquait `CLAUDE.md` par erreur (corrigé le jour même, voir commit dédié) — les 6 étaient déjà pleinement documentés dans `src/prompts/system-prompt.md` (adresses, téléphones, horaires) depuis le Sprint 2/3.
+
+Script ponctuel `scripts/seed-barber-concept.js` (connexion `pg` directe, cohérente avec `src/db.js` de la tâche #70), commité (contrairement à d'autres rattrapages ponctuels non commités sur ce projet — celui-ci documente une donnée réelle de production reproductible) :
+- **6 lignes `Etablissement`** créées avec les vraies adresses (`src/prompts/system-prompt.md`), fuseau `Europe/Zurich`, même `google_calendar_id` pour les 6 (agenda partagé, décision Sprint 3) lu depuis `.env` (`GOOGLE_CALENDAR_CREDENTIALS_PATH` — nom de variable trompeur, contient en réalité l'identifiant du calendrier, pas un chemin de fichier).
+- **1 ligne `AgentIA` réelle** : `numeroTwilio` `+41225391668`, `vapiAssistantId` `c08b8b99-c4f0-4aa1-8d0e-d0a833839a29` (assistant "Receptionniste Barber Concept"), `statut` `actif`, `configVoix` (voix Elliot, `fr-FR`, transcripteur Deepgram `nova-3`, conforme au Sprint 1 tâche #12).
+
+**Choix assumé, pas une vraie décision métier :** `etablissementId` de cet agent rattaché arbitrairement à Cornavin (salon historique), uniquement parce que le champ est obligatoire dans le schéma — n'a plus de sens réel pour attribuer un appel à un salon depuis la tâche #70 (`Appel.etablissementId`, nullable, est désormais la vraie source de vérité, déduite du rendez-vous réel).
+
+**Effet de bord connu et accepté, pas corrigé dans cette tâche :** l'écran client Établissements (`dashboard/src/app/(client)/app/etablissements/data.ts`) affiche numéro/assistant via `etablissement.agentsIA[0]` — seul Cornavin affichera donc le numéro Twilio, les 5 autres salons "Non configuré", tant que ce fichier n'est pas revu (hors périmètre de ce chantier).
+
+Vérifié : requête directe confirmant les 6 établissements et l'agent avec les bonnes valeurs ; build, lint, 27 tests du dashboard toujours au vert (aucun code applicatif modifié, uniquement insertion de données réelles).
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
