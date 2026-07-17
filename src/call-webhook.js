@@ -30,8 +30,26 @@
 // la décision actée dans docs/architecture.md. Voir docs/sprint-log.md,
 // tâche #73, pour le détail complet de cette vérification et ses limites.
 //
-// Périmètre volontaire de cette tâche (le reste vient à la tâche #74) :
-// - `smsEnvoye`/`erreurs` laissés à leur valeur par défaut — tâche #74.
+// **`smsEnvoye`/`erreurs` (tâche #74) — découverte empirique importante :**
+// l'envoi du SMS de confirmation ne passe PAS par ce webhook de fin d'appel,
+// mais par un mécanisme séparé pendant l'appel : l'outil personnalisé Vapi
+// `send_appointment_confirmation_sms` (route `/webhooks/vapi-tools`,
+// `src/server.js`), qui appelle `sendAppointmentConfirmationSms` (`src/sms.js`)
+// et renvoie son résultat à Vapi comme résultat d'outil. Vérifié empiriquement
+// (pas supposé) en inspectant via l'API Vapi (`GET /call/{id}`) plusieurs
+// vrais appels réels : ce résultat apparaît bien dans `artifact.messages`,
+// exactement comme pour `google_calendar_tool` ci-dessus — un tour
+// `role: "tool_call_result"`, `name: "send_appointment_confirmation_sms"`,
+// `result` étant la chaîne JSON de l'objet retourné par `sendAppointmentConfirmationSms`
+// (`{status:"sent",twilioMessageSid}` / `{status:"skipped",error:"already_sent"}` /
+// `{status:"failed",error:"..."}`). Un cas réel supplémentaire a aussi été
+// observé : quand le backend Render était encore en train de se réveiller
+// (cold start, cf. docs/architecture.md), Vapi n'a pas pu joindre
+// `/webhooks/vapi-tools` à temps et a inscrit son propre message d'erreur de
+// transport à la place d'un JSON de résultat — traité ci-dessous comme un
+// échec réel lui aussi (l'appelant n'a jamais reçu de SMS dans ce cas).
+//
+// Périmètre volontaire de cette tâche (le reste vient à la tâche #75) :
 // - Un seul agent IA réel existe aujourd'hui (Barber Concept, tâche #71) :
 //   l'agent est résolu via `vapi_assistant_id` (déjà la bonne clé de jointure
 //   dans le schéma), sans construire de logique multi-agent — une seule requête
@@ -132,6 +150,104 @@ function extraireReservationGoogleCalendar(messages) {
     };
   }
   return derniere;
+}
+
+// Même format que `formatHeure` du Dashboard Client
+// (dashboard/src/app/(client)/app/appels/data.ts) — `erreurs.horodatage` est
+// affiché tel quel dans la frise chronologique (dashboard/src/lib/call-timeline.ts),
+// à côté de `heureDecroche`/`heureRaccroche` qui utilisent ce même format.
+function formatHeure(date) {
+  return date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+}
+
+// Traduction des codes d'erreur retournés par `sendAppointmentConfirmationSms`
+// (`src/sms.js`) en une phrase courte compréhensible par le fondateur — pas le
+// code brut. Les codes Twilio ci-dessous sont les plus courants pour un SMS
+// (numéro invalide, désabonnement, téléphone injoignable/filtré) ; un code
+// Twilio non répertorié retombe sur un message générique qui garde le code
+// pour investigation, plutôt que d'inventer une explication.
+const LIBELLES_ERREUR_TWILIO = {
+  21211: "Numéro de téléphone du client refusé par l'opérateur (Twilio)",
+  21408: 'Envoi de SMS non autorisé vers ce pays ou cette région',
+  21610: 'Le client a demandé à ne plus recevoir de SMS, confirmation non envoyée',
+  21614: "Numéro de téléphone du client non reconnu comme mobile par l'opérateur",
+  30003: 'Téléphone du client injoignable, SMS de confirmation non délivré',
+  30005: "Numéro de téléphone du client inconnu de l'opérateur",
+  30006: 'Ligne fixe ou opérateur injoignable, SMS de confirmation non délivré',
+  30007: 'SMS de confirmation filtré par l\'opérateur (probable détection de spam)',
+};
+
+function traduireErreurSms(errorCode) {
+  if (errorCode === 'invalid_phone_number') {
+    return 'Numéro de téléphone du client invalide, SMS de confirmation non envoyé';
+  }
+  if (errorCode === 'network_error') {
+    return 'Erreur réseau lors de l\'envoi du SMS de confirmation';
+  }
+  const twilioMatch = /^twilio_error_(\d+)$/.exec(errorCode ?? '');
+  if (twilioMatch) {
+    const code = twilioMatch[1];
+    return LIBELLES_ERREUR_TWILIO[code] ?? `Échec de l'envoi du SMS de confirmation (erreur Twilio ${code})`;
+  }
+  return 'Échec de l\'envoi du SMS de confirmation';
+}
+
+// Retrouve, dans `artifact.messages`, le dernier appel à l'outil personnalisé
+// `send_appointment_confirmation_sms` (voir commentaire en tête de fichier) et
+// en déduit `smsEnvoye`/une éventuelle erreur exploitable. "Dernier" par
+// cohérence avec `extraireReservationGoogleCalendar` ci-dessus. Retourne
+// `{ smsEnvoye: false, erreur: null }` si l'outil n'a jamais été appelé (pas
+// de réservation, ou appel raccroché avant) — rien à signaler dans ce cas.
+function resoudreResultatSms(messages) {
+  if (!Array.isArray(messages)) return { smsEnvoye: false, erreur: null };
+
+  let dernier = null;
+  for (const m of messages) {
+    if (m?.role !== 'tool_call_result' || m.name !== 'send_appointment_confirmation_sms') continue;
+    dernier = m;
+  }
+  if (!dernier) return { smsEnvoye: false, erreur: null };
+
+  const horodatage = formatHeure(dernier.time ? new Date(dernier.time) : new Date());
+
+  let resultat;
+  try {
+    resultat = typeof dernier.result === 'string' ? JSON.parse(dernier.result) : dernier.result;
+  } catch {
+    resultat = null;
+  }
+
+  // Résultat non JSON : observé en pratique quand Vapi n'a pas pu joindre
+  // `/webhooks/vapi-tools` à temps (message d'erreur de transport de Vapi lui-
+  // même à la place du JSON attendu) — un échec réel, l'appelant n'a jamais
+  // reçu de SMS, à signaler comme tel plutôt qu'ignoré silencieusement.
+  if (!resultat || typeof resultat.status !== 'string') {
+    return {
+      smsEnvoye: false,
+      erreur: { label: 'Confirmation SMS non envoyée (erreur technique)', horodatage },
+    };
+  }
+
+  if (resultat.status === 'sent') {
+    return { smsEnvoye: true, erreur: null };
+  }
+
+  // "Déjà envoyé" (anti-double-envoi, `src/sms.js`) : le client a bien reçu un
+  // SMS de confirmation pour ce rendez-vous, juste pas à cet appel-ci du
+  // mécanisme d'envoi — compte comme "envoyé" du point de vue du fondateur,
+  // ce n'est pas un échec.
+  if (resultat.status === 'skipped' && resultat.error === 'already_sent') {
+    return { smsEnvoye: true, erreur: null };
+  }
+
+  if (resultat.status === 'failed') {
+    return {
+      smsEnvoye: false,
+      erreur: { label: traduireErreurSms(resultat.error), horodatage },
+    };
+  }
+
+  return { smsEnvoye: false, erreur: null };
 }
 
 // Rapprochement par nom connu dans un texte libre — pas une supposition sur
@@ -322,11 +438,27 @@ async function handleVapiCallEnded(req, res) {
       );
     }
 
+    // Résolution du SMS de confirmation (tâche #74), même principe : isolée
+    // dans son propre bloc try/catch, un échec ici ne doit jamais empêcher
+    // l'écriture Appels/Conversations ci-dessous.
+    let smsEnvoye = false;
+    let erreurs = [];
+    try {
+      const resultatSms = resoudreResultatSms(message.artifact?.messages);
+      smsEnvoye = resultatSms.smsEnvoye;
+      if (resultatSms.erreur) erreurs.push(resultatSms.erreur);
+    } catch (err) {
+      console.error(
+        '[vapi-call-ended] Erreur lors de la résolution du résultat SMS (Appel/Conversations reste écrit) :',
+        err.message
+      );
+    }
+
     const appelId = randomUUID();
     await pool.query(
       `INSERT INTO appels
-        (id, agent_ia_id, etablissement_id, vapi_call_id, telephone_appelant, debut, fin, duree_secondes, statut, cout_detail, url_enregistrement, rendez_vous_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+        (id, agent_ia_id, etablissement_id, vapi_call_id, telephone_appelant, debut, fin, duree_secondes, statut, cout_detail, url_enregistrement, rendez_vous_id, sms_envoye, erreurs)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`,
       [
         appelId,
         agentIaId,
@@ -340,6 +472,8 @@ async function handleVapiCallEnded(req, res) {
         coutDetail ? JSON.stringify(coutDetail) : null,
         urlEnregistrement,
         rendezVousId,
+        smsEnvoye,
+        erreurs.length > 0 ? JSON.stringify(erreurs) : null,
       ]
     );
 
