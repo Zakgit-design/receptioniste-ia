@@ -18,6 +18,7 @@ Conséquence directe sur les priorités : le transfert humain (ancien Sprint 5) 
 | 4 | SMS de confirmation + Backend Render | ✅ terminé |
 | 5 | **Dashboard Administrateur** (plateforme) | nouvelle priorité — en cadrage |
 | 6 | Dashboard Client | à venir |
+| 6bis | Branchement des appels réels (Vapi/Twilio) vers la base | cadré, prêt pour le développement |
 | 7 | Intégration Get Time | reporté (dépend de la présentation officielle à Henok) |
 | 8 | Transfert vers un humain | reporté, toujours prévu |
 | 9 | Polish et répétition | à venir |
@@ -163,6 +164,23 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 - Paramètres : informations entreprise, coordonnées, préférences de notification, abonnement actuel (sans construire Stripe)
 - vue consolidée multi-établissements (6 salons Barber Concept) + filtre par salon + comparaison entre salons
 - emplacement prévu pour les futurs modules Get Time
+
+## Sprint 6bis — Branchement des appels réels (Vapi/Twilio) vers la base
+
+**Objectif :** faire en sorte que chaque vrai appel téléphonique écrive réellement dans la base Postgres (`Appels`, `Conversations`, `RendezVous`), pour que les dashboards Admin et Client (Sprints 5-6) affichent enfin de vrais chiffres plutôt que des zéros.
+**Statut :** cadré par le PM le 2026-07-17 (voir `docs/sprint-log.md`), décisions d'architecture actées par le fondateur (voir `docs/architecture.md`, section « Décision d'architecture — Branchement des appels réels »). Prêt pour le développement.
+**Dépendances :** Sprints 1-4 (backend vocal existant), Sprint 5-6 (schéma Prisma et écrans déjà branchés sur la vraie base, en attente de données réelles).
+**Critères de validation :** plusieurs vrais appels de test (avec réservation, sans réservation, avec échec) font apparaître les bonnes données dans l'écran Appels/Rendez-vous/Vue d'ensemble du Dashboard Client, sans jamais avoir dégradé l'expérience de l'appelant (SMS, réservation, fin d'appel toujours fonctionnels).
+
+**Hors périmètre de ce chantier (voir cadrage complet dans `docs/sprint-log.md`) :** branchement de Vue d'ensemble/Finances/Santé plateforme (admin) sur la vraie base ; `evenements_sante`/`actions_requises` ; support de plusieurs numéros Twilio simultanés ; Get Time/notion de "collaborateur" ; migration d'hébergement (tâches #47-49).
+
+- [x] 69. Décisions d'architecture actées et documentées (connexion backend↔Postgres, résolution établissement par appel) — **terminé le 2026-07-17**, voir `docs/architecture.md`
+- [ ] 70. Connexion technique du backend Express à la base Postgres (Supabase), sans logique métier — critère : écriture de test en base sans casser le service existant sur un vrai appel
+- [ ] 71. Création de l'unique ligne `agents_ia` réelle correspondant au numéro/assistant Barber Concept — critère : un appel de test réel est correctement rattaché à "Barber Concept"
+- [ ] 72. Nouveau webhook Vapi "fin d'appel" → écriture `Appels` + `Conversations` après le raccrochage (jamais pendant) — critère : un appel de test réel fait apparaître une ligne correcte dans l'écran Appels du Dashboard Client
+- [ ] 73. Écriture `ClientsFinaux` + `RendezVous` quand une réservation a réellement eu lieu, liaison `appels.rendez_vous_id`, établissement déduit du RDV ou "non déterminé" sinon — critère : un appel de test avec réservation fait apparaître le RDV dans l'écran Rendez-vous, lié au bon appel
+- [ ] 74. `sms_envoye`/`erreurs` fidèles au résultat réel de l'outil SMS existant — critère : un appel avec SMS envoyé affiche `sms_envoye: true`, un échec affiche une erreur exploitable dans le drawer de détail
+- [ ] 75. Vérification de bout en bout avec plusieurs vrais appels (avec RDV, sans RDV, avec échec) — critère : validation visuelle du fondateur, fin des écrans à zéro pour Barber Concept
 
 ## Sprint 7 — Intégration Get Time
 

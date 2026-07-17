@@ -69,6 +69,18 @@ Conséquence pour chaque décision technique : ne jamais optimiser uniquement po
 
 **Stratégie de migration future vers une solution auto-hébergée (sans réécriture majeure) :** comme les données métier, les entreprises et les rôles sont déjà répliqués dans notre propre base, une migration future se limite à : (1) écrire un nouvel adaptateur derrière la même couche d'abstraction (ex. Keycloak ou solution interne), (2) migrer les comptes utilisateurs (email comme identifiant stable, réinitialisation de mot de passe ou pont SSO), (3) rebrancher l'adaptateur et rejouer la synchronisation. Le reste du produit ne change pas, puisqu'il n'a jamais dépendu de Clerk directement.
 
+## Décision d'architecture — Branchement des appels réels (Vapi/Twilio) vers la base
+
+**Décision du 2026-07-17 (fondateur, sur cadrage produit), avant le développement des tâches #69-75 :**
+
+**Connexion backend ↔ Postgres : directe.** Le backend Express (racine du dépôt, séparé de `dashboard/`) se connecte directement à la même base Supabase que les deux dashboards Next.js — pas de relais HTTP via une route API du dashboard. Justification : plus simple (principe « pas de sur-ingénierie » de `CLAUDE.md`), et comme l'écriture se fait après la fin de l'appel (jamais pendant), aucune dépendance de disponibilité supplémentaire n'est introduite dans le chemin critique de l'appelant. Les migrations Prisma restent la propriété exclusive de `dashboard/` — le backend Express ne fait qu'écrire dans le schéma existant (via `pg` ou un client généré depuis le même schéma), il ne migre jamais la base lui-même.
+
+**Résolution de l'établissement d'un appel : état honnête, jamais inventé.** Barber Concept partage aujourd'hui un seul numéro Twilio et un seul agenda Google Calendar pour ses 6 salons — impossible de déduire le salon concerné à partir du numéro appelé. Règle retenue : l'établissement d'un appel est déduit du rendez-vous réellement pris pendant la conversation (le salon apparaît dans les paramètres de création de l'événement Google Calendar) quand une réservation a eu lieu ; sinon l'appel reste explicitement « établissement non déterminé » plutôt que rattaché arbitrairement à un salon "siège" fictif — cohérent avec le principe déjà appliqué ailleurs dans le produit (ex. colonne "Collaborateur" du Dashboard Client, Sprint 6 tâche #68, "Non renseigné" plutôt qu'une donnée inventée). Cette limite est propre au partage actuel d'un seul numéro/agenda pour 6 salons ; elle disparaît naturellement le jour où chaque salon a son propre numéro (`agents_ia.numero_twilio` sert déjà de clé de résolution dans le schéma, pas de refonte nécessaire).
+
+**Aucun rattrapage historique.** Les quelques vrais appels déjà passés avant ce chantier (tests du fondateur, appel avec Henok) ne sont pas ressaisis manuellement en base — les dashboards repartent à zéro à partir de la mise en service de ce branchement.
+
+**Robustesse :** une panne d'écriture en base ne doit jamais faire échouer l'appel réel lui-même — ce n'est que de la donnée analytique pour les dashboards, pas une fonctionnalité vue par l'appelant (même principe que le keep-alive/filet de sécurité du Sprint 4). Idempotence via `appels.vapi_call_id` (déjà unique dans le schéma) pour ne jamais dupliquer un appel en cas de retry du webhook Vapi.
+
 ## Modules par phase
 
 **Téléphonie et voix (Sprints 1-4, terminés) :**

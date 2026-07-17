@@ -359,6 +359,20 @@ Vérification visuelle faite par le fondateur dans le navigateur : les 6 écrans
 
 En vérifiant l'état de l'instance Clerk (`clerk api /organization_roles`), confirmé que les 4 rôles personnalisés annoncés depuis la tâche #62 (`org:proprietaire`, `org:administrateur`, `org:responsable_etablissement`, `org:membre`) n'avaient en réalité jamais été créés — seuls les rôles natifs `org:admin`/`org:member` existaient, donc l'écran Équipe et accès retombait sur le repli à 2 rôles. Créés via l'API (`POST /organization_roles`, dry-run puis réel, confirmé avec le fondateur avant d'agir sur ce service tiers) avec les clés exactes attendues par `src/auth/roles.ts`. Les 6 rôles (4 personnalisés + 2 natifs) sont maintenant présents sur l'instance. Reste à vérifier : une vraie invitation avec l'un des 4 rôles, en conditions réelles.
 
+## Sprint 6bis — Branchement des appels réels (Vapi/Twilio) vers la base
+Statut : cadré par le product-manager le 2026-07-17, décisions d'architecture validées par le fondateur le jour même. Tâches #69-75 ajoutées à `docs/roadmap.md`. Prêt pour le développement.
+
+**Constat de cadrage, plus large que prévu au départ :** aucune table liée aux appels (`agents_ia`, `appels`, `conversations`, `rendez_vous`, `clients_finaux`) n'est jamais écrite pour un vrai appel — le backend Express (racine du dépôt, séparé de `dashboard/`) n'a aujourd'hui aucune connexion à Postgres. Bonne nouvelle identifiée pendant le cadrage : la prise de rendez-vous passe déjà par les outils natifs Vapi (Google Calendar), donc tout l'enregistrement en base peut se faire **après la fin de l'appel** (rapport de fin d'appel Vapi, nouveau webhook dédié), jamais pendant — aucun risque de dégrader l'expérience de l'appelant.
+
+**Périmètre retenu :** connecter le backend au vrai numéro/assistant Barber Concept (`agents_ia`), écrire `Appels`/`Conversations` à la fin de chaque appel, `RendezVous`/`ClientsFinaux` quand une réservation a réellement eu lieu, refléter fidèlement `sms_envoye`/`erreurs`. Hors périmètre explicite : Vue d'ensemble/Finances/Santé plateforme (admin) restent sur données de démo pour l'instant (sujet séparé), multi-numéro Twilio, Get Time, migration d'hébergement.
+
+**Décisions d'architecture actées par le fondateur (voir `docs/architecture.md`, nouvelle section dédiée) :**
+- Connexion directe du backend Express à la base Postgres (Supabase), pas de relais HTTP via le dashboard Next.js — plus simple, aucune dépendance de disponibilité supplémentaire puisque l'écriture se fait après la fin d'appel. Les migrations Prisma restent la propriété de `dashboard/`.
+- Établissement d'un appel déduit du rendez-vous réellement pris quand il y en a un (le salon apparaît dans les paramètres de l'événement Google Calendar créé) ; sinon état honnête « établissement non déterminé », jamais un rattachement arbitraire à un salon fictif — limite propre au partage actuel d'un seul numéro/agenda Barber Concept pour ses 6 salons, qui disparaîtra naturellement avec un numéro par salon plus tard (`agents_ia.numero_twilio` déjà prévu comme clé de résolution).
+- Aucun rattrapage manuel des quelques vrais appels déjà passés avant ce chantier (tests fondateur, appel avec Henok) — les dashboards repartent à zéro à la mise en service.
+
+**Risques signalés par le cadrage, à garder en tête pendant le développement :** panne d'écriture en base ne doit jamais faire échouer l'appel réel (donnée analytique, pas fonctionnelle) ; idempotence via `appels.vapi_call_id` (déjà unique) contre les doublons en cas de retry Vapi ; correspondance service prononcé à l'oral ↔ table `services` à surveiller pendant les tests réels.
+
 ## Sprint 7 — Intégration Get Time
 Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
 
