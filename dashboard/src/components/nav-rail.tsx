@@ -167,7 +167,12 @@ export function MobileNav({
   const actionsOuvertes = useActionsOuvertes();
 
   return (
-    <Sheet open={open} onOpenChange={setOpen}>
+    // `modal={false}` : sans ça, Radix rend tout ce qui est hors du panneau
+    // inerte tant qu'il est ouvert — y compris le popover Clerk du UserButton
+    // (portalé ailleurs dans le DOM), dont "Gérer le compte"/"Se déconnecter"
+    // devenaient alors inutilisables. Le panneau se ferme toujours au clic
+    // extérieur et à Échap (comportement Radix conservé sans le mode modal).
+    <Sheet open={open} onOpenChange={setOpen} modal={false}>
       <SheetTrigger asChild>
         <Button
           variant="ghost"
