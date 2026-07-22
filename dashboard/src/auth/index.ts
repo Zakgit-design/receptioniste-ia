@@ -106,6 +106,22 @@ export async function inviteUser(
 }
 
 /**
+ * Invite un nouvel administrateur plateforme — invitation Clerk au niveau de
+ * l'instance (pas d'organisation, voir listAdminsPlateforme ci-dessus) :
+ * `publicMetadata.role: "admin_plateforme"` est posé dès la création de
+ * l'invitation, appliqué automatiquement à l'utilisateur une fois qu'il
+ * accepte et crée son compte (comportement Clerk natif, pas de webhook à
+ * écrire pour ça).
+ */
+export async function inviterAdminPlateforme(email: string): Promise<void> {
+  const client = await clerkClient();
+  await client.invitations.createInvitation({
+    emailAddress: email,
+    publicMetadata: { role: "admin_plateforme" },
+  });
+}
+
+/**
  * Membres actifs et invitations en attente de l'organisation Clerk d'une
  * entreprise (utilisé par l'onglet "Utilisateurs" du détail entreprise).
  *

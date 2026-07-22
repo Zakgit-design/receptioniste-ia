@@ -39,6 +39,19 @@ export async function getAdminsPlateforme(): Promise<UtilisateurAffiche[]> {
   }));
 }
 
+/** Entreprises reliées à Clerk — pour le sélecteur du bouton "+ Inviter un utilisateur" (voir InviterUtilisateurDialog). */
+export async function getEntreprisesInvitables(): Promise<{ clerkOrganizationId: string; nom: string }[]> {
+  const entreprises = await prisma.entreprise.findMany({
+    where: { clerkOrganizationId: { not: null } },
+    select: { nom: true, clerkOrganizationId: true },
+    orderBy: { nom: "asc" },
+  });
+  return entreprises.map((entreprise) => ({
+    clerkOrganizationId: entreprise.clerkOrganizationId as string,
+    nom: entreprise.nom,
+  }));
+}
+
 export async function getUtilisateursParEntreprise(): Promise<UtilisateursEntreprise[]> {
   const entreprises = await prisma.entreprise.findMany({
     where: { clerkOrganizationId: { not: null } },

@@ -1,9 +1,9 @@
 import { PageHeader } from "@/components/page-header";
-import { Button } from "@/components/ui/button";
+import { InviterUtilisateurDialog } from "@/components/inviter-utilisateur-dialog";
 import { StatutBadge, type ToneBadge } from "@/components/statut-badge";
 import type { RoleUtilisateur } from "@/generated/prisma/enums";
 import type { UtilisateurAffiche } from "./data";
-import { getAdminsPlateforme, getUtilisateursParEntreprise } from "./data";
+import { getAdminsPlateforme, getUtilisateursParEntreprise, getEntreprisesInvitables } from "./data";
 
 // Force le rendu dynamique : interroge l'API Clerk directement, sans API
 // dynamique (auth/cookies) pour le déclencher implicitement — même raison
@@ -16,11 +16,6 @@ export const dynamic = "force-dynamic";
 // d'invitation directe uniquement — pas de demande d'accès autonome au MVP,
 // donc pas de file d'attente à valider, juste un statut "invitation en
 // attente" tant que la personne n'a pas encore accepté.
-//
-// "+ Inviter un utilisateur" est un bouton visuel, pas encore fonctionnel :
-// il appellera src/auth/inviteUser une fois qu'un compte Clerk réel existe
-// (voir contrainte de cette tâche) — même situation que "+ Nouvelle
-// entreprise" sur l'écran Entreprises.
 
 const libelleRole: Record<RoleUtilisateur, string> = {
   admin_plateforme: "Admin plateforme",
@@ -54,9 +49,10 @@ function ligneUtilisateur(utilisateur: UtilisateurAffiche) {
 }
 
 export default async function UtilisateursPage() {
-  const [adminsPlateforme, utilisateursParEntreprise] = await Promise.all([
+  const [adminsPlateforme, utilisateursParEntreprise, entreprisesInvitables] = await Promise.all([
     getAdminsPlateforme(),
     getUtilisateursParEntreprise(),
+    getEntreprisesInvitables(),
   ]);
 
   return (
@@ -64,7 +60,7 @@ export default async function UtilisateursPage() {
       <PageHeader
         title="Utilisateurs"
         subtitle="Accès plateforme et accès par entreprise (Clerk)"
-        action={<Button>+ Inviter un utilisateur</Button>}
+        action={<InviterUtilisateurDialog entreprises={entreprisesInvitables} />}
       />
 
       <div className="mb-3.5 overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
