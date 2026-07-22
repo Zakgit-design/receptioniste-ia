@@ -493,6 +493,22 @@ Script ponctuel commité `scripts/set-pilot-etablissement.js` (même méthode qu
 
 Fichiers créés/modifiés : `scripts/set-pilot-etablissement.js`, `dashboard/src/app/(client)/app/etablissements/data.ts` (commentaire), `docs/roadmap.md`.
 
+### Tâche #77 — Bug bloquant trouvé en déployant sur Vercel : rendu statique de `/entreprises` (2026-07-22)
+
+Premier essai de déploiement Vercel : le build échoue avec `P1001 - Can't reach database server` au niveau de Prisma.
+
+**Cause exacte identifiée (pas juste une hypothèse réseau) :** `src/app/(dashboard)/entreprises/page.tsx` appelle directement `getEntreprisesListe()` (→ `prisma.entreprise.findMany()`) sans utiliser aucune API dynamique (`auth()`, `cookies()`...). Next.js la traite donc comme statique et l'exécute **pendant le build** (confirmé : `○ /entreprises` dans la sortie de build) — sur Vercel, cette requête Prisma part depuis l'infrastructure de build, pas seulement au runtime après déploiement, ce qui explique pourquoi l'erreur apparaît précisément "au niveau de Prisma pendant le build" plutôt qu'après coup.
+
+**Écarté avant de conclure :** connexion pooler Supabase déjà correcte (`DATABASE_URL`/`DIRECT_URL` pointent toutes les deux vers l'hôte Supavisor compatible IPv4, pas de piège IPv6), aucune route en runtime `edge` (`@prisma/adapter-pg` a besoin du runtime Node), versions Prisma/Next compatibles entre elles. `DIRECT_URL` hors de cause : lue uniquement par `prisma.config.ts` pour les migrations, jamais pendant `next build`/`prisma generate`.
+
+**Vérification systématique des autres pages du dashboard interrogeant Prisma directement** (`grep` sur les fichiers important `@/lib/prisma`) : les 5 pages de `(client)/app/*` (Appels, Équipe, Établissements, Paramètres, Rendez-vous) appellent toutes déjà `getCurrentUser()` (Clerk) avant leur requête Prisma — déjà rendues dynamiquement de fait, confirmé par le build (`ƒ` pour chacune). `(dashboard)/finances`, `/sante-plateforme`, `/utilisateurs`, `/appels` restent sur données de démonstration (hors périmètre, statut inchangé depuis le Sprint 5/6bis) — pas de requête Prisma, rien à corriger. **`/entreprises` était donc le seul cas réel.**
+
+**Correction appliquée :** `export const dynamic = "force-dynamic"` ajouté à `src/app/(dashboard)/entreprises/page.tsx` (convention confirmée dans `node_modules/next/dist/docs/01-app/02-guides/caching-without-cache-components.md` — le projet n'active pas le flag `cacheComponents`, donc c'est la bonne API pour cette version de Next.js). Aucune donnée ni schéma Prisma modifiés. Rebuild vérifié : `/entreprises` passe de `○` à `ƒ`, plus aucune requête base de données pendant le build. `npm run build`/`lint`/`test` (27 tests) au vert.
+
+**Bénéfice au-delà du déploiement :** corrige aussi un bug de fraîcheur des données qui existait déjà indépendamment de Vercel — une page statique aurait figé la liste des entreprises au moment du dernier build plutôt que de refléter les créations/suppressions réelles.
+
+Fichiers modifiés : `dashboard/src/app/(dashboard)/entreprises/page.tsx`.
+
 ## Sprint 12 — Intégration Get Time
 Statut : reporté — en attente de la décision des associés de Barber Concept suite à la démonstration officielle à Henok.
 
