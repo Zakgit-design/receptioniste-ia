@@ -56,7 +56,7 @@ export default function FinancesPage() {
         </div>
       </div>
 
-      <div className="mb-3.5 grid grid-cols-[1fr_1.4fr] gap-3.5">
+      <div className="mb-3.5 grid grid-cols-1 gap-3.5 lg:grid-cols-[1fr_1.4fr]">
         {/* 2. Coûts fixes de plateforme — non répartis par entreprise. */}
         <div className="rounded-lg border border-border bg-surface px-4 py-[15px] shadow-[var(--shadow-panel)]">
           <div className="mb-2.5 flex items-baseline justify-between">
@@ -107,7 +107,7 @@ export default function FinancesPage() {
       </div>
 
       {/* 4. Rentabilité par entreprise — triée du moins rentable au plus rentable. */}
-      <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
+      <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
         <div className="flex items-baseline justify-between border-b border-border px-4 py-[13px]">
           <h3 className="text-[13px] font-bold text-text">Rentabilité par entreprise</h3>
           <span className="text-[11px] font-semibold text-text-muted">

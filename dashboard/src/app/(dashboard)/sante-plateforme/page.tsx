@@ -67,7 +67,7 @@ export default function SantePlateformePage() {
         {rows.map((row) => (
           <div
             key={row.id}
-            className="flex items-center gap-3 border-b border-border px-4 py-[13px] last:border-b-0"
+            className="flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-4 py-[13px] last:border-b-0"
           >
             <StatutBadge tone={toneParStatut[row.statut]}>
               {libelleParStatut[row.statut]}

@@ -23,7 +23,7 @@ export default function OverviewPage() {
 
       <StatTiles statistiques={statistiques} />
 
-      <div className="grid grid-cols-[1.55fr_1fr] items-start gap-4">
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.55fr_1fr]">
         <CallsChart serie={serieAppels14Jours} />
         <RecentCalls appels={derniersAppels} />
       </div>

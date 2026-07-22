@@ -60,7 +60,7 @@ export default function UtilisateursPage() {
         action={<Button>+ Inviter un utilisateur</Button>}
       />
 
-      <div className="mb-3.5 overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
+      <div className="mb-3.5 overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
         <div className="border-b border-border px-4 py-[13px]">
           <h3 className="text-[13px] font-bold text-text">Admins plateforme</h3>
         </div>
@@ -80,7 +80,7 @@ export default function UtilisateursPage() {
       {utilisateursParEntreprise.map((entreprise) => (
         <div
           key={entreprise.entrepriseId}
-          className="mb-3.5 overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]"
+          className="mb-3.5 overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]"
         >
           <div className="border-b border-border px-4 py-[13px]">
             <h3 className="text-[13px] font-bold text-text">{entreprise.entrepriseNom}</h3>
