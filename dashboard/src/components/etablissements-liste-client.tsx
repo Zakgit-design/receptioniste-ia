@@ -31,7 +31,7 @@ export function EtablissementsListeClient({
             </StatutBadge>
           </div>
 
-          <div className="grid grid-cols-3 gap-3 border-t border-border pt-3">
+          <div className="grid grid-cols-1 gap-3 border-t border-border pt-3 sm:grid-cols-3">
             <div>
               <div className={labelClass}>Numéro</div>
               <div className="mt-1 font-mono text-[12.5px] text-text-secondary">

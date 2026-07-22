@@ -10,7 +10,7 @@ export function StatsEtablissementsClient({
   etablissements: StatistiqueEtablissement[];
 }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
+    <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
       <div className="border-b border-border px-4 py-[13px]">
         <h3 className="text-[12.5px] font-bold text-text">Statistiques par établissement</h3>
       </div>

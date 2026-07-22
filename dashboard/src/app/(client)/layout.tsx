@@ -14,9 +14,9 @@ export default function ClientLayout({ children }: { children: React.ReactNode }
   return (
     <div className="flex min-h-screen">
       <NavRail groups={navGroupsClient} subtitle="Client" />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <TopBar />
-        <main className="flex-1 overflow-x-auto px-[30px] py-[26px] pb-[60px]">
+      <div className="flex min-h-screen min-w-0 flex-1 flex-col">
+        <TopBar groups={navGroupsClient} subtitle="Client" />
+        <main className="min-w-0 flex-1 overflow-x-auto px-4 py-5 pb-[60px] md:px-[30px] md:py-[26px]">
           {children}
         </main>
       </div>

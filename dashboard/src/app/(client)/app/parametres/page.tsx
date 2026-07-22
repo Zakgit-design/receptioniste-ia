@@ -52,7 +52,7 @@ export default async function ParametresClientPage() {
         <div className="rounded-lg border border-border bg-surface px-4 py-[15px] shadow-[var(--shadow-panel)]">
           <h3 className="mb-3 text-[13px] font-bold text-text">Abonnement actuel</h3>
           {abonnement ? (
-            <div className="grid grid-cols-2 gap-x-3.5 gap-y-2 text-xs">
+            <div className="grid grid-cols-1 gap-x-3.5 gap-y-2 text-xs sm:grid-cols-2">
               <div>
                 <div className="text-text-muted">Plan</div>
                 <div className="font-semibold text-text">{abonnement.nomPlan}</div>

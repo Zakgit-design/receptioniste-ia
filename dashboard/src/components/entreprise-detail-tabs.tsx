@@ -27,7 +27,7 @@ export function EntrepriseDetailTabs({ entreprise }: { entreprise: EntrepriseDet
       </TabsList>
 
       <TabsContent value="vue-ensemble">
-        <div className="grid grid-cols-2 gap-3.5">
+        <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div className="rounded-lg border border-border bg-surface px-4 py-[15px] shadow-[var(--shadow-panel)]">
             <div className="mb-2.5 flex items-center gap-[7px]">
               <span

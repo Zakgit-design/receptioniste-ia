@@ -32,7 +32,7 @@ export function CoordonneesForm({ entreprise }: { entreprise: ParametresClient["
       <form
         action={handleSubmit}
         onChange={() => setSaved(false)}
-        className="grid grid-cols-2 gap-3.5"
+        className="grid grid-cols-1 gap-3.5 sm:grid-cols-2"
       >
         <div className="grid gap-1.5">
           <Label htmlFor="nom">Nom de l&apos;entreprise</Label>

@@ -87,7 +87,7 @@ export function RendezVousTableClient({
         </Select>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
+      <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
         <table className="w-full border-collapse text-[12.5px]">
           <thead>
             <tr className="border-b border-border">
