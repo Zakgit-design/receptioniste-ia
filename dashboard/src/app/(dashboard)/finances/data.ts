@@ -1,17 +1,21 @@
-// Données de démonstration pour l'écran Finances — voir
-// docs/sprint5-conception.md, section 5 : marge brute plateforme (hero),
-// coûts fixes de plateforme (`couts_fixes_plateforme`, docs/architecture.md),
-// coûts variables par fournisseur, puis rentabilité par entreprise triée.
+// Écran Finances — branché sur les vraies données Postgres (2026-07-22) :
+// marge brute plateforme (hero), coûts fixes de plateforme
+// (`couts_fixes_plateforme`, vide tant qu'aucun coût n'y est enregistré —
+// pas de coût fixe inventé), coûts variables réels agrégés depuis
+// `appels.cout_detail` (jsonb renvoyé par Vapi), puis rentabilité par
+// entreprise triée.
 //
 // La rentabilité par entreprise n'est jamais recalculée ici : elle vient de
 // ../entreprises/data.ts (mêmes chiffres que l'onglet "Vue d'ensemble" du
-// détail entreprise). Seuls les coûts fixes et la répartition par fournisseur
-// sont propres à cet écran.
+// détail entreprise).
+//
+// **Limite honnête assumée :** les coûts Twilio (téléphonie/SMS) ne sont pas
+// suivis pour l'instant — `appels.cout_detail` (Vapi) ne les inclut pas, et
+// aucune requête à l'API Twilio n'est faite ici. Pas de coût Twilio inventé :
+// simplement absent de la répartition, mentionné explicitement à l'écran.
 
-import {
-  getRentabiliteEntreprises,
-  type RentabiliteEntrepriseAffichee,
-} from "../entreprises/data";
+import { prisma } from "@/lib/prisma";
+import { getRentabiliteEntreprises, type RentabiliteEntrepriseAffichee } from "../entreprises/data";
 
 export interface CoutFixePlateforme {
   fournisseur: string;
@@ -32,25 +36,70 @@ export interface FinancesData {
   rentabiliteEntreprises: RentabiliteEntrepriseAffichee[];
 }
 
-// Un seul coût fixe pour l'instant : Render (voir docs/architecture.md,
-// décision d'architecture Hébergement). Volontairement non réparti par
-// entreprise (voir docs/sprint5-conception.md, section 5).
-const coutsFixesPlateforme: CoutFixePlateforme[] = [
-  { fournisseur: "Render (hébergement)", montantMensuelChf: 25 },
-];
+interface RepartitionItem {
+  type?: string;
+  cost?: number;
+  transcriber?: { provider?: string };
+  model?: { provider?: string };
+  voice?: { provider?: string };
+}
 
-// Répartition par fournisseur du coût variable total du mois (cohérente avec
-// la somme des `coutVariableChf` des 3 entreprises dans ../entreprises/data.ts,
-// soit 312 CHF) — le détail par fournisseur vient de `appels.cout_detail`
-// (docs/architecture.md), pas encore branché ici en tant que vraie requête.
-const coutsVariablesParFournisseur: CoutVariableFournisseur[] = [
-  { fournisseur: "Vapi (voix)", montantChf: 168 },
-  { fournisseur: "Twilio (tél. + SMS)", montantChf: 96 },
-  { fournisseur: "Anthropic (Claude)", montantChf: 48 },
-];
+/**
+ * Agrège le coût réel du mois en cours par fournisseur, à partir de
+ * `appels.cout_detail.repartition` (renvoyé tel quel par Vapi). Regroupé en
+ * 3 catégories pour rester lisible et cohérent avec la palette existante
+ * (voir globals.css, --cat-vapi/--cat-twilio/--cat-anthropic) : la voix/
+ * plateforme Vapi, le modèle Anthropic (Claude), et le reste (transcription
+ * Deepgram, analyse Google/OpenAI) — regroupé sous "Autres", pas de nouvelle
+ * couleur inventée pour une répartition encore approximative.
+ */
+async function getCoutsVariablesParFournisseur(): Promise<CoutVariableFournisseur[]> {
+  const debutMois = new Date();
+  debutMois.setDate(1);
+  debutMois.setHours(0, 0, 0, 0);
 
-export function getFinancesData(): FinancesData {
-  const rentabiliteEntreprises = getRentabiliteEntreprises();
+  const appels = await prisma.appel.findMany({
+    where: { debut: { gte: debutMois } },
+    select: { coutDetail: true },
+  });
+
+  let vapi = 0;
+  let anthropic = 0;
+  let autres = 0;
+
+  for (const appel of appels) {
+    const detail = appel.coutDetail;
+    if (typeof detail !== "object" || detail === null) continue;
+    const repartition = (detail as { repartition?: unknown }).repartition;
+    if (!Array.isArray(repartition)) continue;
+
+    for (const itemBrut of repartition as RepartitionItem[]) {
+      const cout = typeof itemBrut.cost === "number" ? itemBrut.cost : 0;
+      if (itemBrut.type === "voice" || itemBrut.type === "vapi") {
+        vapi += cout;
+      } else if (itemBrut.type === "model" && itemBrut.model?.provider === "anthropic") {
+        anthropic += cout;
+      } else {
+        autres += cout;
+      }
+    }
+  }
+
+  const arrondir = (montant: number) => Math.round(montant * 100) / 100;
+  return [
+    { fournisseur: "Vapi (voix + plateforme)", montantChf: arrondir(vapi) },
+    { fournisseur: "Anthropic (Claude)", montantChf: arrondir(anthropic) },
+    { fournisseur: "Autres (transcription, analyse)", montantChf: arrondir(autres) },
+  ];
+}
+
+export async function getFinancesData(): Promise<FinancesData> {
+  const [rentabiliteEntreprises, coutsVariablesParFournisseur, coutsFixesReels] = await Promise.all([
+    getRentabiliteEntreprises(),
+    getCoutsVariablesParFournisseur(),
+    prisma.coutFixePlateforme.findMany({ orderBy: { fournisseur: "asc" } }),
+  ]);
+
   const revenusEstimesChf = rentabiliteEntreprises.reduce(
     (total, entreprise) => total + entreprise.revenuChf,
     0
@@ -59,17 +108,18 @@ export function getFinancesData(): FinancesData {
     (total, cout) => total + cout.montantChf,
     0
   );
-  const coutFixeTotalChf = coutsFixesPlateforme.reduce(
-    (total, cout) => total + cout.montantMensuelChf,
-    0
-  );
-  const coutsTotalChf = coutVariableTotalChf + coutFixeTotalChf;
+  const coutsFixes: CoutFixePlateforme[] = coutsFixesReels.map((cout) => ({
+    fournisseur: cout.fournisseur,
+    montantMensuelChf: Number(cout.montantMensuel),
+  }));
+  const coutFixeTotalChf = coutsFixes.reduce((total, cout) => total + cout.montantMensuelChf, 0);
+  const coutsTotalChf = Math.round((coutVariableTotalChf + coutFixeTotalChf) * 100) / 100;
 
   return {
-    margeBrutePlateformeChf: revenusEstimesChf - coutsTotalChf,
+    margeBrutePlateformeChf: Math.round((revenusEstimesChf - coutsTotalChf) * 100) / 100,
     revenusEstimesChf,
     coutsTotalChf,
-    coutsFixes: coutsFixesPlateforme,
+    coutsFixes,
     coutsVariablesParFournisseur,
     rentabiliteEntreprises,
   };

@@ -1,20 +1,13 @@
-// Données de démonstration pour la Vue d'ensemble — voir
-// docs/sprint5-conception.md, section 3. À remplacer par de vraies requêtes
-// Prisma quand la base PostgreSQL sera disponible (voir docs/sprint-log.md).
+// Vue d'ensemble — branchée sur les vraies données Postgres (2026-07-22),
+// tous clients confondus (vue plateforme).
 //
 // Les types réutilisent les modèles Prisma générés pour les champs qui
-// correspondent à une vraie table (`ActionRequiseModel`, `AppelModel`), pour
-// que brancher la vraie base plus tard soit un remplacement direct de cette
-// fonction, pas une réécriture des types.
+// correspondent à une vraie table (`ActionRequiseModel`, `AppelModel`).
 
+import { prisma } from "@/lib/prisma";
 import type { ActionRequiseModel, AppelModel } from "@/generated/prisma/models";
 import type { ActionRecommandee } from "@/lib/actions-center";
 
-// Le champ JSON générique `actionRecommandee` du modèle Prisma est retypé en
-// `ActionRecommandee` (voir src/lib/actions-center.ts) plutôt que `Json | null`.
-// `metaLabel` (ex. "il y a 12 min", "expire le 19 juillet") n'existe pas dans
-// le schéma : il sera calculé à l'affichage à partir de `createdAt` (ou de la
-// date de fin d'essai de l'entreprise) une fois la vraie base branchée.
 export type ActionRequiseAffichee = Omit<
   ActionRequiseModel,
   "actionRecommandee"
@@ -30,17 +23,11 @@ export interface StatistiqueTuile {
   couleurPoint: "good" | "signal";
 }
 
-// "Derniers appels" affiche des informations jointes (nom de l'entreprise et
-// de l'établissement via l'agent IA, résultat de l'appel) qui n'existent pas
-// telles quelles sur le modèle `Appel` — seuls les champs directement issus
-// du modèle sont repris depuis `AppelModel`.
 export type AppelRecent = Pick<
   AppelModel,
   "id" | "dureeSecondes" | "statut" | "smsEnvoye"
 > & {
   entrepriseNom: string;
-  // null pour une entreprise à établissement unique (rien à préciser en plus
-  // du nom de l'entreprise) — ex. Le Petit Bouchon, Cabinet Dentaire Sourire.
   etablissementNom: string | null;
   resultat: string;
 };
@@ -58,121 +45,103 @@ export interface OverviewData {
   derniersAppels: AppelRecent[];
 }
 
-export function getOverviewData(): OverviewData {
+/** "il y a 12 min" / "il y a 3h" / "hier" — relatif à maintenant. */
+function metaLabelDepuis(date: Date): string {
+  const minutes = Math.round((Date.now() - date.getTime()) / 60000);
+  if (minutes < 1) return "à l'instant";
+  if (minutes < 60) return `il y a ${minutes} min`;
+  const heures = Math.round(minutes / 60);
+  if (heures < 24) return `il y a ${heures}h`;
+  const jours = Math.round(heures / 24);
+  return `il y a ${jours}j`;
+}
+
+/** Nombre d'actions requises ouvertes (statut "nouveau") — badge de nav (voir nav-rail.tsx), calculé côté serveur pour rester utilisable depuis un layout. */
+export async function getActionsOuvertesCount(): Promise<number> {
+  return prisma.actionRequise.count({ where: { statut: "nouveau" } });
+}
+
+export async function getOverviewData(): Promise<OverviewData> {
+  const debutAujourdhui = new Date();
+  debutAujourdhui.setHours(0, 0, 0, 0);
+  const il7Jours = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const il14Jours = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+  il14Jours.setHours(0, 0, 0, 0);
+
+  const [actions, entreprisesActives, appelsAujourdhui, rdvConfirmes7j, appels14Jours, derniersAppelsBruts] =
+    await Promise.all([
+      prisma.actionRequise.findMany({ where: { statut: "nouveau" }, orderBy: { createdAt: "desc" } }),
+      prisma.entreprise.count({ where: { statut: "actif" } }),
+      prisma.appel.count({ where: { debut: { gte: debutAujourdhui } } }),
+      prisma.rendezVous.count({ where: { statut: "confirme", createdAt: { gte: il7Jours } } }),
+      prisma.appel.findMany({ where: { debut: { gte: il14Jours } }, select: { debut: true } }),
+      prisma.appel.findMany({
+        orderBy: { debut: "desc" },
+        take: 8,
+        include: { agentIA: { include: { entreprise: { select: { nom: true } } } }, etablissement: { select: { nom: true } } },
+      }),
+    ]);
+
+  // Série 14 jours : un point par jour, même les jours sans appel (0).
+  const compteParJour = new Map<string, number>();
+  for (const appel of appels14Jours) {
+    const cle = appel.debut.toLocaleDateString("fr-CH", { day: "2-digit", month: "2-digit" });
+    compteParJour.set(cle, (compteParJour.get(cle) ?? 0) + 1);
+  }
+  const serieAppels14Jours: PointAppelsQuotidien[] = [];
+  for (let i = 13; i >= 0; i--) {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    date.setDate(date.getDate() - i);
+    const cle = date.toLocaleDateString("fr-CH", { day: "2-digit", month: "2-digit" });
+    serieAppels14Jours.push({
+      jour: date.toLocaleDateString("fr-CH", { day: "numeric", month: "short" }),
+      nombreAppels: compteParJour.get(cle) ?? 0,
+    });
+  }
+
   return {
-    miseAJourLe: "mardi 16 juillet, 11:42",
-    actionsRequises: [
-      {
-        id: "action-1",
-        type: "technique",
-        gravite: "critique",
-        titre: "SMS de confirmation en échec — Le Petit Bouchon",
-        description: "3 échecs consécutifs, délai backend dépassé.",
-        entrepriseId: "entreprise-petit-bouchon",
-        actionRecommandee: { libelle: "Vérifier Twilio", lien: "/sante-plateforme" },
-        metaLabel: "il y a 12 min",
-        statut: "nouveau",
-        resoluLe: null,
-        createdAt: new Date(),
-      },
-      {
-        id: "action-2",
-        type: "business",
-        gravite: "a_surveiller",
-        titre: "Essai gratuit expire dans 3 jours — Le Petit Bouchon",
-        description: "Aucun moyen de paiement enregistré pour l'instant.",
-        entrepriseId: "entreprise-petit-bouchon",
-        actionRecommandee: {
-          libelle: "Contacter le client",
-          lien: "/entreprises/entreprise-petit-bouchon",
-        },
-        metaLabel: "expire le 19 juillet",
-        statut: "nouveau",
-        resoluLe: null,
-        createdAt: new Date(),
-      },
-      {
-        id: "action-3",
-        type: "technique",
-        gravite: "a_surveiller",
-        titre: "Google Calendar déconnecté — Cabinet Dentaire Sourire",
-        description:
-          "Le jeton d'autorisation a expiré, les disponibilités ne se mettent plus à jour.",
-        entrepriseId: "entreprise-cabinet-dentaire",
-        actionRecommandee: {
-          libelle: "Reconnecter",
-          lien: "/entreprises/entreprise-cabinet-dentaire",
-        },
-        metaLabel: "depuis 09:02",
-        statut: "nouveau",
-        resoluLe: null,
-        createdAt: new Date(),
-      },
-    ],
+    miseAJourLe: new Date().toLocaleString("fr-CH", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+      hour: "2-digit",
+      minute: "2-digit",
+    }),
+    actionsRequises: actions.map((action) => ({
+      ...action,
+      actionRecommandee: action.actionRecommandee as ActionRecommandee | null,
+      metaLabel: metaLabelDepuis(action.createdAt),
+    })),
     statistiques: [
       {
         label: "Entreprises actives",
-        valeur: "3",
-        delta: "+1 en essai",
+        valeur: String(entreprisesActives),
+        delta: "plateforme",
         couleurPoint: "good",
       },
       {
         label: "Appels aujourd'hui",
-        valeur: "47",
-        delta: "+12% vs hier",
+        valeur: String(appelsAujourdhui),
+        delta: "toutes entreprises",
         couleurPoint: "signal",
       },
       {
         label: "RDV confirmés (7j)",
-        valeur: "189",
-        delta: "86% des appels RDV",
+        valeur: String(rdvConfirmes7j),
+        delta: "toutes entreprises",
         couleurPoint: "good",
       },
     ],
-    serieAppels14Jours: [
-      { jour: "3 juil.", nombreAppels: 28 },
-      { jour: "4 juil.", nombreAppels: 31 },
-      { jour: "5 juil.", nombreAppels: 29 },
-      { jour: "6 juil.", nombreAppels: 36 },
-      { jour: "7 juil.", nombreAppels: 34 },
-      { jour: "8 juil.", nombreAppels: 39 },
-      { jour: "9 juil.", nombreAppels: 38 },
-      { jour: "10 juil.", nombreAppels: 44 },
-      { jour: "11 juil.", nombreAppels: 42 },
-      { jour: "12 juil.", nombreAppels: 48 },
-      { jour: "13 juil.", nombreAppels: 46 },
-      { jour: "14 juil.", nombreAppels: 53 },
-      { jour: "15 juil.", nombreAppels: 54 },
-      { jour: "16 juil.", nombreAppels: 61 },
-    ],
-    derniersAppels: [
-      {
-        id: "call-1",
-        entrepriseNom: "Barber Concept",
-        etablissementNom: "Jonction",
-        resultat: "prise de RDV",
-        statut: "termine",
-        smsEnvoye: true,
-        dureeSecondes: 178,
-      },
-      {
-        id: "call-2",
-        entrepriseNom: "Le Petit Bouchon",
-        etablissementNom: null,
-        resultat: "réservation table",
-        statut: "termine",
-        smsEnvoye: false,
-        dureeSecondes: 107,
-      },
-      {
-        id: "call-3",
-        entrepriseNom: "Cabinet Dentaire Sourire",
-        etablissementNom: null,
-        resultat: "renseignement",
-        statut: "termine",
-        smsEnvoye: true,
-        dureeSecondes: 269,
-      },
-    ],
+    serieAppels14Jours,
+    derniersAppels: derniersAppelsBruts.map((appel) => ({
+      id: appel.id,
+      entrepriseNom: appel.agentIA.entreprise.nom,
+      etablissementNom: appel.etablissement?.nom ?? null,
+      resultat: appel.statut === "echoue" ? "Échec" : appel.rendezVousId ? "Prise de RDV" : "Renseignement",
+      statut: appel.statut,
+      smsEnvoye: appel.smsEnvoye,
+      dureeSecondes: appel.dureeSecondes,
+    })),
   };
 }

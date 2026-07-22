@@ -7,11 +7,19 @@ import { MobileNav } from "@/components/nav-rail";
 // nav-rail.tsx) : sous 768px, le rail de navigation desktop est caché, la
 // marque "Standard" doit donc rester visible ici pour que la page ne perde
 // jamais son identité, et un bouton hamburger remplace l'accès à la nav.
-export function TopBar({ groups, subtitle = "Admin" }: { groups: NavGroup[]; subtitle?: string }) {
+export function TopBar({
+  groups,
+  subtitle = "Admin",
+  actionsOuvertes = 0,
+}: {
+  groups: NavGroup[];
+  subtitle?: string;
+  actionsOuvertes?: number;
+}) {
   return (
     <div className="flex h-14 items-center justify-between gap-2.5 border-b border-border px-3 md:gap-4 md:px-[22px]">
       <div className="flex items-center gap-2 md:hidden">
-        <MobileNav groups={groups} subtitle={subtitle} />
+        <MobileNav groups={groups} subtitle={subtitle} actionsOuvertes={actionsOuvertes} />
         <div className="flex h-[26px] w-[26px] items-center justify-center rounded-[4px] bg-ink text-paper">
           <Phone className="h-[13px] w-[13px]" strokeWidth={2.5} />
         </div>

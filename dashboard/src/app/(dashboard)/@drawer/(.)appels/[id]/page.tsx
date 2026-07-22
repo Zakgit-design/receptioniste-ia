@@ -14,7 +14,7 @@ export default async function AppelDrawerPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const appel = getAppelDetail(id);
+  const appel = await getAppelDetail(id);
   if (!appel) {
     notFound();
   }

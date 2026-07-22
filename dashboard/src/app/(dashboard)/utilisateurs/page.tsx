@@ -5,6 +5,11 @@ import type { RoleUtilisateur } from "@/generated/prisma/enums";
 import type { UtilisateurAffiche } from "./data";
 import { getAdminsPlateforme, getUtilisateursParEntreprise } from "./data";
 
+// Force le rendu dynamique : interroge l'API Clerk directement, sans API
+// dynamique (auth/cookies) pour le déclencher implicitement — même raison
+// que /entreprises (voir docs/sprint-log.md, 2026-07-22).
+export const dynamic = "force-dynamic";
+
 // Écran Utilisateurs — voir docs/architecture.md (modèle `utilisateurs`) et
 // docs/sprint5-conception.md, section 2 : admins plateforme d'un côté,
 // membres par entreprise (organisation Clerk) de l'autre. Modèle
@@ -48,9 +53,11 @@ function ligneUtilisateur(utilisateur: UtilisateurAffiche) {
   );
 }
 
-export default function UtilisateursPage() {
-  const adminsPlateforme = getAdminsPlateforme();
-  const utilisateursParEntreprise = getUtilisateursParEntreprise();
+export default async function UtilisateursPage() {
+  const [adminsPlateforme, utilisateursParEntreprise] = await Promise.all([
+    getAdminsPlateforme(),
+    getUtilisateursParEntreprise(),
+  ]);
 
   return (
     <div>

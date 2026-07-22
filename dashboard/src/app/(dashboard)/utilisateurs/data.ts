@@ -1,14 +1,19 @@
-// Données de démonstration pour l'écran Utilisateurs — voir
-// docs/architecture.md (modèle `utilisateurs`) et docs/sprint5-conception.md,
-// section 2 (modèle d'invitation directe : un Super Admin/propriétaire
-// invite, pas de demande d'accès autonome au MVP).
+// Écran Utilisateurs — branché sur les vraies données Clerk (2026-07-22) :
+// admins plateforme d'un côté, membres par entreprise (organisation Clerk)
+// de l'autre. Modèle d'invitation directe uniquement (voir
+// docs/sprint5-conception.md, section 2).
 //
-// À remplacer par de vraies requêtes (table `utilisateurs`, synchronisée par
-// le webhook Clerk — voir src/auth/webhook.ts) une fois la base disponible.
-// Mêmes 3 entreprises que partout ailleurs dans le dashboard (voir
-// ../entreprises/data.ts) : Barber Concept, Cabinet Dentaire Sourire, Le
-// Petit Bouchon.
+// Contrairement à une requête sur la seule table `utilisateurs` (Postgres,
+// synchronisée par webhook — voir src/auth/webhook.ts), cet écran interroge
+// directement l'API Clerk (comme l'écran "Équipe et accès" du Dashboard
+// Client, voir (client)/app/equipe/data.ts) : les invitations en attente
+// n'existent que côté Clerk tant qu'elles ne sont pas acceptées, et la table
+// `utilisateurs` ne serait de toute façon peuplée qu'une fois le webhook de
+// synchronisation configuré en production (voir docs/roadmap.md, tâche #78,
+// toujours ouverte).
 
+import { prisma } from "@/lib/prisma";
+import { listOrganizationMembers, listAdminsPlateforme } from "@/auth";
 import type { RoleUtilisateur } from "@/generated/prisma/enums";
 
 export interface UtilisateurAffiche {
@@ -24,66 +29,38 @@ export interface UtilisateursEntreprise {
   membres: UtilisateurAffiche[];
 }
 
-export function getAdminsPlateforme(): UtilisateurAffiche[] {
-  return [
-    {
-      nom: "Zakaria — Fondateur",
-      email: "zakaria@receptionniste-ia.ch",
-      role: "admin_plateforme",
-      statut: "actif",
-    },
-  ];
+export async function getAdminsPlateforme(): Promise<UtilisateurAffiche[]> {
+  const admins = await listAdminsPlateforme();
+  return admins.map((admin) => ({
+    nom: admin.nom,
+    email: admin.email,
+    role: "admin_plateforme" as const,
+    statut: "actif" as const,
+  }));
 }
 
-export function getUtilisateursParEntreprise(): UtilisateursEntreprise[] {
-  return [
-    {
-      entrepriseId: "entreprise-barber-concept",
-      entrepriseNom: "Barber Concept",
-      membres: [
-        {
-          nom: "Julien Dupont",
-          email: "julien.dupont@barberconcept.ch",
-          role: "proprietaire",
-          statut: "actif",
-        },
-        {
-          nom: "Amélie Rossi",
-          email: "amelie.rossi@barberconcept.ch",
-          role: "membre",
-          statut: "actif",
-        },
-        {
-          nom: "Karim Haddad",
-          email: "karim.haddad@barberconcept.ch",
-          role: "membre",
-          statut: "invitation_en_attente",
-        },
-      ],
-    },
-    {
-      entrepriseId: "entreprise-cabinet-dentaire",
-      entrepriseNom: "Cabinet Dentaire Sourire",
-      membres: [
-        {
-          nom: "Dr Sophie Meier",
-          email: "sophie.meier@cabinet-sourire.ch",
-          role: "proprietaire",
-          statut: "actif",
-        },
-      ],
-    },
-    {
-      entrepriseId: "entreprise-petit-bouchon",
-      entrepriseNom: "Le Petit Bouchon",
-      membres: [
-        {
-          nom: "Marc Bovier",
-          email: "marc.bovier@lepetitbouchon.ch",
-          role: "proprietaire",
-          statut: "actif",
-        },
-      ],
-    },
-  ];
+export async function getUtilisateursParEntreprise(): Promise<UtilisateursEntreprise[]> {
+  const entreprises = await prisma.entreprise.findMany({
+    where: { clerkOrganizationId: { not: null } },
+    select: { id: true, nom: true, clerkOrganizationId: true },
+    orderBy: { nom: "asc" },
+  });
+
+  return Promise.all(
+    entreprises.map(async (entreprise) => {
+      const membres = entreprise.clerkOrganizationId
+        ? await listOrganizationMembers(entreprise.clerkOrganizationId)
+        : [];
+      return {
+        entrepriseId: entreprise.id,
+        entrepriseNom: entreprise.nom,
+        membres: membres.map((membre) => ({
+          nom: membre.nom,
+          email: membre.email,
+          role: membre.role,
+          statut: membre.statut,
+        })),
+      };
+    })
+  );
 }

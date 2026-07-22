@@ -26,6 +26,33 @@ export interface ErreurAppel {
   horodatage: string;
 }
 
+function estObjet(valeur: unknown): valeur is Record<string, unknown> {
+  return typeof valeur === "object" && valeur !== null;
+}
+
+/**
+ * Parse défensif de `appels.outils_utilises` (jsonb, forme non garantie) —
+ * partagé entre le Dashboard Admin et le Dashboard Client (mêmes colonnes
+ * réelles, même logique de lecture).
+ */
+export function parseOutilsUtilises(json: unknown): OutilAppelUtilise[] {
+  if (!Array.isArray(json)) return [];
+  return json.filter(
+    (item): item is OutilAppelUtilise =>
+      estObjet(item) && typeof item.label === "string" && typeof item.horodatage === "string"
+  );
+}
+
+/** Parse défensif de `appels.erreurs` (jsonb, forme non garantie). */
+export function parseErreurs(json: unknown): ErreurAppel[] | null {
+  if (!Array.isArray(json)) return null;
+  const erreurs = json.filter(
+    (item): item is ErreurAppel =>
+      estObjet(item) && typeof item.label === "string" && typeof item.horodatage === "string"
+  );
+  return erreurs.length > 0 ? erreurs : null;
+}
+
 export interface DonneesTimelineAppel {
   heureDecroche: string;
   heureRaccroche: string | null;

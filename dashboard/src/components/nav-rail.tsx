@@ -17,7 +17,6 @@ import {
 } from "lucide-react";
 import type { NavGroup, NavIconName } from "@/lib/nav";
 import { cn } from "@/lib/utils";
-import { getOverviewData } from "@/app/(dashboard)/data";
 import { UserButton, useClerk, useUser } from "@/auth/ui";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -157,27 +156,27 @@ function MobileAccountMenu({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
-function useActionsOuvertes() {
-  // Compteur du centre d'actions, visible depuis tout écran (voir
-  // docs/sprint5-conception.md, section 2) — même source de données que la
-  // Vue d'ensemble, à remplacer par une vraie requête quand la base sera prête.
-  return getOverviewData().actionsRequises.filter((item) => item.statut === "nouveau").length;
-}
-
 // Rail de navigation desktop — inchangé visuellement, seulement caché sous
 // 768px (voir MobileNav ci-dessous pour l'équivalent mobile). Partagé par le
 // Dashboard Administrateur et le Dashboard Client (voir
 // docs/sprint6-conception.md) : chaque layout passe son propre jeu de
 // navigation (`src/lib/nav.ts` / `src/lib/nav-client.ts`).
+//
+// `actionsOuvertes` est calculé côté serveur par le layout appelant (requête
+// Prisma, voir getActionsOuvertesCount dans (dashboard)/data.ts) et transmis
+// en prop — ce composant est un Client Component, il ne peut pas interroger
+// Prisma lui-même. Le Dashboard Client passe toujours 0 (badge non pertinent
+// pour lui, voir NavList : n'affiche le badge que sur l'item d'accueil admin
+// href="/").
 export function NavRail({
   groups,
   subtitle = "Admin",
+  actionsOuvertes = 0,
 }: {
   groups: NavGroup[];
   subtitle?: string;
+  actionsOuvertes?: number;
 }) {
-  const actionsOuvertes = useActionsOuvertes();
-
   return (
     <aside className="hidden w-[232px] shrink-0 flex-col gap-[22px] border-r border-border bg-surface px-3 py-[18px] md:flex">
       <BrandMark subtitle={subtitle} />
@@ -206,12 +205,13 @@ export function NavRail({
 export function MobileNav({
   groups,
   subtitle = "Admin",
+  actionsOuvertes = 0,
 }: {
   groups: NavGroup[];
   subtitle?: string;
+  actionsOuvertes?: number;
 }) {
   const [open, setOpen] = useState(false);
-  const actionsOuvertes = useActionsOuvertes();
 
   return (
     // Modal (comportement par défaut) : verrouille le défilement de la page

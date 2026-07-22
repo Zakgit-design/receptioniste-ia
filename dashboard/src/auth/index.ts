@@ -147,6 +147,29 @@ export async function listOrganizationMembers(entrepriseId: string): Promise<Mem
 }
 
 /**
+ * Liste les administrateurs plateforme — utilisateurs Clerk sans
+ * organisation, identifiés par `publicMetadata.role: "admin_plateforme"`
+ * (renseigné manuellement depuis le dashboard Clerk, voir getCurrentUser
+ * ci-dessus). Utilisé par l'écran Utilisateurs du Dashboard Administrateur.
+ * Requête sur l'ensemble des utilisateurs Clerk (pas de notion
+ * d'organisation ici) — acceptable au volume actuel de la plateforme.
+ */
+export async function listAdminsPlateforme(): Promise<{ clerkUserId: string; nom: string; email: string }[]> {
+  const client = await clerkClient();
+  const { data: utilisateurs } = await client.users.getUserList({ limit: 500 });
+
+  return utilisateurs
+    .filter((utilisateur) => utilisateur.publicMetadata?.role === "admin_plateforme")
+    .map((utilisateur) => ({
+      clerkUserId: utilisateur.id,
+      nom:
+        [utilisateur.firstName, utilisateur.lastName].filter(Boolean).join(" ") ||
+        (utilisateur.primaryEmailAddress?.emailAddress ?? ""),
+      email: utilisateur.primaryEmailAddress?.emailAddress ?? "",
+    }));
+}
+
+/**
  * Change le rôle d'organisation Clerk d'un membre déjà actif (écran Équipe et
  * accès, docs/roadmap.md tâche #64). N'écrit jamais directement dans
  * `utilisateurs` — c'est le webhook `organizationMembership.updated` (voir

@@ -2,7 +2,12 @@ import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
 import { StatutBadge, type ToneBadge } from "@/components/statut-badge";
 import { santeParService, type StatutSante } from "@/lib/health";
-import { getEvenementsSante } from "@/lib/demo-evenements-sante";
+import { prisma } from "@/lib/prisma";
+
+// Force le rendu dynamique : interroge Prisma directement, sans API
+// dynamique pour le déclencher implicitement — même raison que /entreprises
+// (voir docs/sprint-log.md, 2026-07-22).
+export const dynamic = "force-dynamic";
 
 // Page Santé plateforme — voir docs/sprint5-conception.md, section 7 : les 7
 // services critiques, agrégés à partir des mêmes `evenements_sante` que la
@@ -10,6 +15,13 @@ import { getEvenementsSante } from "@/lib/demo-evenements-sante";
 // entreprise — voir src/lib/health.ts). Réservée au Super Admin : simple
 // mention dans le sous-titre, la vraie restriction d'accès (Clerk) est une
 // tâche séparée.
+//
+// **Limite honnête assumée (2026-07-22) :** aucun mécanisme n'écrit encore
+// dans `evenements_sante` (aucune vérification automatique de service
+// branchée — voir docs/roadmap.md, ancien Sprint 11, différé). Un service
+// sans le moindre événement enregistré affiche donc "Aucune donnée", jamais
+// "Fonctionnel" par défaut — inventer un statut "ok" serait mentir sur une
+// surveillance qui n'existe pas encore.
 
 const services: { id: string; nom: string }[] = [
   { id: "render", nom: "Render (backend)" },
@@ -21,24 +33,33 @@ const services: { id: string; nom: string }[] = [
   { id: "webhooks", nom: "Webhooks" },
 ];
 
-const libelleParStatut: Record<StatutSante, string> = {
+type StatutAffiche = StatutSante | "aucune_donnee";
+
+const libelleParStatut: Record<StatutAffiche, string> = {
   ok: "Fonctionnel",
   degrade: "Dégradé",
   echec: "Incident",
+  aucune_donnee: "Aucune donnée",
 };
 
-const toneParStatut: Record<StatutSante, ToneBadge> = {
+const toneParStatut: Record<StatutAffiche, ToneBadge> = {
   ok: "good",
   degrade: "warn",
   echec: "critical",
+  aucune_donnee: "neutral",
 };
 
-export default function SantePlateformePage() {
-  const evenements = getEvenementsSante();
+/** "il y a X min" — fonction module (pas dans le corps du composant), même règle de pureté que metaLabelDepuis ((dashboard)/data.ts). */
+function depuisMinutes(date: Date): number {
+  return Math.round((Date.now() - date.getTime()) / 60000);
+}
+
+export default async function SantePlateformePage() {
+  const evenements = await prisma.evenementSante.findMany({ orderBy: { createdAt: "desc" } });
   const statutParService = santeParService(evenements);
 
   const rows = services.map((service) => {
-    const statut = statutParService.get(service.id) ?? "ok";
+    const statut: StatutAffiche = statutParService.get(service.id) ?? "aucune_donnee";
     const evenementsProblematiques = evenements.filter(
       (evenement) => evenement.service === service.id && evenement.statut !== "ok"
     );
@@ -47,13 +68,15 @@ export default function SantePlateformePage() {
         .map((evenement) => evenement.entrepriseId)
         .filter((entrepriseId): entrepriseId is string => entrepriseId !== null)
     );
-    const detail = evenementsProblematiques.find((evenement) => evenement.detail)?.detail;
+    const dernierEvenement = evenements.find((evenement) => evenement.service === service.id);
 
     return {
       ...service,
       statut,
       nbEntreprisesImpactees: entreprisesImpactees.size,
-      verificationLabel: detail ?? "dernière vérification il y a 40s",
+      verificationLabel: dernierEvenement
+        ? `dernière vérification il y a ${depuisMinutes(dernierEvenement.createdAt)} min`
+        : "aucune vérification automatique branchée",
     };
   });
 

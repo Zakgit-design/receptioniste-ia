@@ -6,9 +6,9 @@ import { cn } from "@/lib/utils";
 import { SantePill } from "@/components/sante-pill";
 import { StatutBadge, toneForStatutEntreprise } from "@/components/statut-badge";
 import type { EntrepriseListeItem } from "@/app/(dashboard)/entreprises/data";
-import type { StatutSante } from "@/lib/health";
+import type { StatutSanteAffiche } from "@/components/sante-pill";
 
-export type EntrepriseListeRow = EntrepriseListeItem & { sante: StatutSante };
+export type EntrepriseListeRow = EntrepriseListeItem & { sante: StatutSanteAffiche };
 
 const thClass =
   "px-4 py-[9px] text-left text-[10.5px] font-bold tracking-[0.05em] text-text-muted uppercase whitespace-nowrap";

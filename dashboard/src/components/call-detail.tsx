@@ -1,11 +1,7 @@
 import { cn } from "@/lib/utils";
 import { StatutBadge } from "@/components/statut-badge";
 import { construireTimelineAppel, type ToneEtapeTimeline } from "@/lib/call-timeline";
-import {
-  formatDureeAppel,
-  libelleEtToneAppel,
-  type AppelDetail,
-} from "@/app/(dashboard)/appels/data";
+import { formatDureeAppel, libelleEtToneAppel, type AppelDetail } from "@/lib/appels-admin";
 
 const dotToneClass: Record<ToneEtapeTimeline, string> = {
   good: "bg-good",

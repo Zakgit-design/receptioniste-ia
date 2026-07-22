@@ -9,7 +9,7 @@ import {
   formatDureeAppel,
   libelleEtToneAppel,
   type AppelListeItem,
-} from "@/app/(dashboard)/appels/data";
+} from "@/lib/appels-admin";
 
 const thClass =
   "px-4 py-[9px] text-left text-[10.5px] font-bold tracking-[0.05em] text-text-muted uppercase whitespace-nowrap";

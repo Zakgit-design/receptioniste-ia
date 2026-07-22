@@ -5,12 +5,17 @@ import { CallsChart } from "@/components/calls-chart";
 import { RecentCalls } from "@/components/recent-calls";
 import { getOverviewData } from "./data";
 
+// Force le rendu dynamique : cette page interroge Prisma directement, sans
+// API dynamique (auth/cookies) pour le déclencher implicitement — même
+// raison que /entreprises (voir docs/sprint-log.md, 2026-07-22).
+export const dynamic = "force-dynamic";
+
 // Vue d'ensemble — ordre du contenu acté dans docs/sprint5-conception.md,
 // section 3 : centre d'actions en premier (avant toute statistique), puis
 // statistiques clés, puis graphique + derniers appels en dernier.
-export default function OverviewPage() {
+export default async function OverviewPage() {
   const { miseAJourLe, actionsRequises, statistiques, serieAppels14Jours, derniersAppels } =
-    getOverviewData();
+    await getOverviewData();
 
   return (
     <div>
