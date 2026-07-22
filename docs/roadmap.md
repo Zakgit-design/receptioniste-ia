@@ -10,7 +10,9 @@ Conséquence directe sur les priorités : le transfert humain (ancien Sprint 5) 
 
 ## Vue d'ensemble — roadmap officielle
 
-**Réorganisation du 2026-07-22 (fondateur, cadrage CTO) :** la démonstration officielle à Henok a eu lieu — accueil positif, décision finale en attente de ses associés. La validation du client pilote n'est donc plus un prérequis bloquant. La priorité passe à deux chantiers, volontairement traités ensemble parce qu'ils partagent le même mécanisme technique sous-jacent : préparer un vrai déploiement chez Barber Concept (au-delà de la démo testée jusqu'ici) et industrialiser l'onboarding d'une deuxième entreprise — condition réelle de "SaaS commercialisable" plutôt qu'une simple extension de fonctionnalités. Get Time et le transfert humain restent prévus mais repoussés plus loin ; la facturation (Stripe) reste volontairement hors périmètre tant qu'aucune relation commerciale formelle n'est signée.
+**Réorganisation du 2026-07-22 (fondateur, cadrage CTO) :** la démonstration officielle à Henok a eu lieu — accueil positif, décision finale en attente de ses associés.
+
+**Recadrage du même jour, avant tout développement :** Barber Concept n'a pas encore confirmé le pilote. Construire immédiatement un déploiement complet à 6 salons (un numéro/assistant/agenda par salon) serait donc une sur-ingénierie prématurée — l'investissement doit rester proportionné tant que l'accord n'est pas confirmé. **Le Sprint 7 est recadré autour d'un pilote réel limité à un seul salon** (numéro, assistant, agenda et établissement uniques, les 5 autres salons restant présents en base mais non configurés/non actifs), avec un accès distant réel pour Henok (Dashboard Client déployé publiquement sur Vercel, parcours d'invitation Clerk). L'extension à un numéro/assistant/agenda par salon, l'onboarding industrialisé d'une deuxième entreprise et la migration vers une infrastructure toujours active restent prévus, mais deviennent une **phase suivante, déclenchée par la validation commerciale de Barber Concept** — pas par l'avancement des sprints. Get Time et le transfert humain restent prévus mais repoussés plus loin ; la facturation (Stripe) reste volontairement hors périmètre tant qu'aucune relation commerciale formelle n'est signée.
 
 | Sprint | Contenu | Statut |
 |---|---|---|
@@ -21,11 +23,11 @@ Conséquence directe sur les priorités : le transfert humain (ancien Sprint 5) 
 | 5 | Dashboard Administrateur (plateforme) | ✅ terminé |
 | 6 | Dashboard Client | ✅ terminé |
 | 6bis | Branchement des appels réels (Vapi/Twilio) vers la base | ✅ terminé |
-| 7 | **Déploiement réel Barber Concept** — un numéro/assistant/agenda par salon | nouvelle priorité |
-| 8 | Catalogue de services complet et généralisé | à venir |
-| 9 | Infrastructure de production toujours active | à venir |
-| 10 | **Onboarding industrialisé d'une nouvelle entreprise** | à venir |
-| 11 | Supervision minimale réelle (santé, alerte) | à venir |
+| 7 | **Pilote réel mono-salon** — un seul salon, dashboards déployés publiquement, accès Henok | nouvelle priorité |
+| 8 | Catalogue de services complet et généralisé | en pause — après validation commerciale |
+| 9 | Infrastructure de production toujours active | en pause — après validation commerciale |
+| 10 | Onboarding industrialisé d'une nouvelle entreprise | en pause — après validation commerciale |
+| 11 | Supervision minimale réelle (santé, alerte) | en pause — après validation commerciale |
 | 12 | Intégration Get Time | reporté (attend la décision des associés de Barber Concept) |
 | 13 | Transfert vers un humain | reporté, toujours prévu |
 | 14 | Polish et répétition | à venir |
@@ -189,62 +191,33 @@ Les sprints 1 à 4 de cette vue regroupent le détail historique conservé ci-de
 - [x] 74. `sms_envoye`/`erreurs` fidèles au résultat réel de l'outil SMS existant — **terminé le 2026-07-17**, voir `docs/sprint-log.md`
 - [x] 75. Vérification de bout en bout avec plusieurs vrais appels (avec RDV, sans RDV, avec échec) — **terminé le 2026-07-18**, validé par le fondateur avec 3 vrais appels téléphoniques, voir `docs/sprint-log.md`. **Sprint 6bis clos.**
 
-## Sprint 7 — Déploiement réel Barber Concept (provisioning multi-établissements)
+## Sprint 7 — Pilote réel mono-salon Barber Concept
 
-**Objectif :** sortir de la simplification "un seul numéro/agenda partagé pour les 6 salons" (acceptée comme limitation de démo depuis le Sprint 3) et donner à chaque salon Barber Concept son propre numéro, son propre assistant et son propre agenda — condition d'un déploiement réel où les 6 salons reçoivent de vrais appels clients au quotidien, pas seulement des appels de test.
-**Statut :** cadré le 2026-07-22 (fondateur), suite à la démonstration officielle à Henok. Prêt pour le développement.
+**Objectif :** rendre le pilote réellement utilisable par Barber Concept à l'échelle d'**un seul salon**, avec un accès distant réel pour Henok — sans investir dans un déploiement complet à 6 salons tant que le projet n'est pas confirmé.
+**Statut :** recadré le 2026-07-22 (fondateur), suite à la démonstration officielle à Henok (accueil positif, décision finale en attente de ses associés). Prêt pour le développement.
 **Dépendances :** Sprint 6bis (branchement des appels réels).
-**Motivation :** deux limites acceptées comme simplifications de démo deviennent bloquantes en usage réel :
-- Agenda unique partagé entre les 6 salons → un rendez-vous pris à Cornavin peut faire apparaître un créneau comme indisponible à Sion à la même heure alors qu'il est réellement libre (comportement observé et validé "comme prévu" pendant les tests du Sprint 3 — acceptable en démo, risque direct de réservations perdues en exploitation réelle).
-- Numéro/assistant unique partagé → seul Cornavin s'affiche correctement dans le Dashboard Client (numéro, assistant, intégrations) ; les 5 autres salons affichent "Non configuré" (limite documentée à la clôture du Sprint 6bis).
-**Critères de validation :** un appel réel sur chacun des 6 numéros aboutit à l'établissement correctement identifié dans les deux dashboards, sans aucun faux conflit d'agenda entre salons.
+**Décision de périmètre (fondateur, 2026-07-22) :** Barber Concept n'a pas encore confirmé le pilote — construire immédiatement un numéro/assistant/agenda par salon (6 salons) serait une sur-ingénierie prématurée. Le pilote reste volontairement limité à :
+- un seul numéro Twilio, un seul assistant Vapi, un seul agenda Google Calendar, un seul établissement (déjà en place depuis le Sprint 6bis : agent et numéro réels rattachés à **Cornavin**, choix proposé par défaut car déjà configuré — à confirmer ou changer avec le fondateur) ;
+- les 5 autres salons restent présents dans le modèle de données (`etablissements`) mais **sans ligne `agents_ia`** — non configurés, non actifs, aucun travail de provisioning supplémentaire pour l'instant ;
+- l'architecture reste extensible : `agents_ia.etablissement_id`/`numero_twilio` et `etablissements.google_calendar_id` supportent déjà un numéro/assistant/agenda par salon sans refonte — voir « Phase suivante, après validation commerciale » ci-dessous.
+**Critères de validation :** Henok se connecte au Dashboard Client depuis son propre ordinateur ou téléphone, via une URL publique, et ne voit que les données du salon pilote Barber Concept.
 
-- [ ] 76. Concevoir et coder un mécanisme générique de provisioning d'un établissement : achat/rattachement d'un numéro Twilio, création d'un assistant Vapi à partir d'un template de prompt paramétrable (horaires/services/ton), création d'un agenda Google Calendar dédié, attachement des outils déjà validés (vérification créneau, création RDV, SMS, fin d'appel) — pensé réutilisable pour n'importe quelle entreprise, pas seulement Barber Concept (sert de base au Sprint 10)
-- [ ] 77. Appliquer ce mécanisme aux 5 salons qui partagent encore Cornavin — chacun reçoit un numéro, un assistant et un agenda réels
-- [ ] 78. Mettre à jour la résolution d'établissement (`call-webhook.js`, scope des dashboards) pour s'appuyer directement sur le numéro/agent appelé plutôt que sur la déduction via le rendez-vous, désormais possible puisque chaque salon est identifiable sans ambiguïté
-- [ ] 79. Vérification de bout en bout : un vrai appel sur chacun des 6 numéros, attribution correcte vérifiée dans le Dashboard Administrateur et le Dashboard Client, aucun faux conflit d'agenda entre salons
+- [ ] 76. Confirmer avec le fondateur l'établissement retenu pour le pilote (Cornavin par défaut) et vérifier que rien dans le code des dashboards ne suppose à tort que les 6 salons sont tous configurés
+- [ ] 77. Déployer le Dashboard Next.js (Admin + Client, même codebase) sur Vercel : build de production, variables d'environnement (connexion Supabase en mode pooler, clés Clerk), URL Vercel par défaut (domaine personnalisé différé, voir `docs/architecture.md`)
+- [ ] 78. Reconfigurer Clerk pour l'URL publique Vercel : URLs de redirection après connexion/déconnexion, endpoint du webhook `.../api/webhooks/clerk` pointé vers Vercel (plus localhost)
+- [ ] 79. Vérifier/finaliser la liaison Organisation Clerk ↔ Barber Concept (`clerk_organization_id`, normalement déjà backfillée depuis la tâche #62) puis inviter réellement Henok par email depuis l'écran "Équipe et accès" existant (Sprint 6, tâche #64), avec le rôle approprié
+- [ ] 80. Test de bout en bout par une personne externe (pas le fondateur) : réception de l'invitation, connexion sécurisée, redirection vers `/app`, vérification qu'elle ne voit que les données du salon pilote Barber Concept
+- [ ] 81. Documenter explicitement dans `docs/architecture.md` que Render gratuit ne convient pas à une exploitation réelle durable (démarrage à froid) — fait, limite acceptée sciemment pour ce pilote à faible volume, pas résolue
 
-## Sprint 8 — Catalogue de services complet et généralisé
+### Phase suivante, après validation commerciale de Barber Concept (en pause, ne pas démarrer avant)
 
-**Objectif :** combler les trous connus du catalogue de prestations Barber Concept et généraliser le modèle `Service`, aujourd'hui à prix unique global, pour supporter une variation par établissement — nécessaire à un déploiement réel fiable et à l'onboarding futur d'un client dont les prestations varient par site.
-**Statut :** cadré le 2026-07-22.
-**Dépendances :** Sprint 7 (établissements individualisés).
-**Critères de validation :** une réservation réelle pour une prestation spécifique à un salon (ex. Coupe Henok à Rive) ou un tarif étudiant est reconnue et crée un rendez-vous correct, alors qu'elle échoue silencieusement aujourd'hui (limite documentée à la tâche #73).
+Une fois Barber Concept confirme le projet au-delà du pilote (ou qu'une deuxième entreprise réelle arrive), les chantiers suivants redeviennent prioritaires — non détaillés davantage pour l'instant, pour éviter d'investir dans une conception qui pourrait changer selon les retours du pilote mono-salon :
 
-- [ ] 80. Généraliser le modèle `Service` pour permettre une variation de prix/durée par établissement (au lieu d'un prix unique par entreprise)
-- [ ] 81. Compléter le catalogue réel Barber Concept : tarifs étudiants, prestations spécifiques par salon
-- [ ] 82. Revalider par un vrai appel qu'une prestation spécifique est désormais reconnue et crée un rendez-vous correct
-
-## Sprint 9 — Infrastructure de production toujours active
-
-**Objectif :** sortir du plan Render gratuit + keep-alive (solution de contournement temporaire actée au Sprint 4, voir `docs/architecture.md`) avant qu'un vrai trafic quotidien sur 6 salons — puis une deuxième entreprise — n'en dépende.
-**Statut :** déclencheur mis à jour le 2026-07-22 : auparavant conditionné à l'arrivée d'un "premier client payant" hypothétique, désormais motivé directement par le déploiement réel Barber Concept (Sprint 7), qui rend ce risque concret plutôt que théorique.
-**Dépendances :** aucune technique, mais logiquement à faire avant que le Sprint 7 ne mette les 6 salons en usage réel quotidien.
-
-- [ ] 47. Migrer le backend vers une infrastructure toujours active (Render Starter ou hébergeur équivalent) — objectifs : aucune mise en veille, aucune latence au premier appel, disponibilité 24h/24, fiable pour plusieurs entreprises simultanément.
-- [ ] 48. Supprimer le mécanisme de keep-alive (`src/server.js`) devenu inutile une fois l'infrastructure toujours active en place.
-- [ ] 49. Revalider par un vrai appel de bout en bout (réservation + SMS) que la migration n'a rien cassé.
-
-## Sprint 10 — Onboarding industrialisé d'une nouvelle entreprise
-
-**Objectif :** rendre l'arrivée d'une deuxième entreprise cliente reproductible depuis le dashboard, sans projet d'ingénierie sur-mesure comme cela a été le cas pour Barber Concept — condition réelle de scalabilité "des dizaines puis des centaines d'entreprises" (voir `docs/architecture.md`, principe directeur).
-**Statut :** cadré le 2026-07-22. Réutilise directement le mécanisme de provisioning construit au Sprint 7 (tâche #76).
-**Dépendances :** Sprint 7 (mécanisme de provisioning générique).
-**Critères de validation :** une entreprise test d'un secteur différent de la coiffure (restaurant ou cabinet dentaire) est onboardée de bout en bout en passant uniquement par le dashboard et une checklist manuelle documentée — jamais de code écrit spécifiquement pour cette entreprise.
-
-- [ ] 83. Éditeur établissements/services dans le Dashboard Administrateur, remplaçant les scripts ponctuels utilisés jusqu'ici (ex. `scripts/seed-services-barber-concept.js`)
-- [ ] 84. Documenter et outiller le parcours de connexion Google Calendar par client (limite Vapi confirmée au Sprint 3 : OAuth pilotable uniquement depuis le dashboard Vapi, pas d'API) — checklist claire pour toute nouvelle entreprise
-- [ ] 85. Onboarder une entreprise test d'un secteur différent de bout en bout, en réutilisant le mécanisme du Sprint 7 (tâche #76), sans aucun code sur-mesure
-- [ ] 86. Mesurer et documenter le temps réel d'onboarding — argument commercial pour la vente à de futurs clients
-
-## Sprint 11 — Supervision minimale réelle
-
-**Objectif :** une fois plusieurs assistants réels en production (6 salons Barber Concept + entreprise test du Sprint 10), le fondateur doit savoir qu'un problème existe avant qu'un client ne s'en plaigne.
-**Statut :** cadré le 2026-07-22.
-**Dépendances :** Sprint 7 et Sprint 10 (plusieurs assistants réels doivent exister pour que la supervision ait quelque chose à surveiller).
-
-- [ ] 87. Brancher `evenements_sante`/`actions_requises` sur de vrais déclencheurs (échec d'envoi SMS, agenda déconnecté, échec du webhook fin d'appel...) plutôt que sur les données de démonstration actuelles du Dashboard Administrateur
-- [ ] 88. Alerte minimale au fondateur (email ou SMS) sur un échec critique
+- **Extension multi-salons** — un numéro/assistant/agenda propre par salon pour les 5 salons Barber Concept restants (mécanisme générique de provisioning à concevoir à ce moment-là, réutilisable pour toute entreprise)
+- **Sprint 8 — Catalogue de services complet et généralisé** — combler les trous connus (tarifs étudiants, prestations spécifiques par salon) et généraliser le modèle `Service` (prix/durée variable par établissement)
+- **Sprint 9 — Infrastructure de production toujours active** — sortir de Render gratuit + keep-alive (tâches #47-49, voir `docs/architecture.md`)
+- **Sprint 10 — Onboarding industrialisé d'une nouvelle entreprise** — éditeur établissements/services dans le dashboard, réutilisation du mécanisme de provisioning ci-dessus pour une entreprise test d'un autre secteur
+- **Sprint 11 — Supervision minimale réelle** — `evenements_sante`/`actions_requises` branchés sur de vrais déclencheurs, alerte au fondateur
 
 ---
 

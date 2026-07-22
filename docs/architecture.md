@@ -35,17 +35,20 @@ Conséquence pour chaque décision technique : ne jamais optimiser uniquement po
 | Intelligence | Claude (API Anthropic) | Comprend la demande, décide de l'action |
 | Backend | Node.js | Logique métier, relie Vapi à l'agenda et aux SMS |
 | Agenda (démo) | Google Calendar API | Créneaux disponibles + création de RDV |
-| Hébergement | Render (plan gratuit + keep-alive, temporaire — voir décision ci-dessous) | Fait tourner le backend |
+| Hébergement backend | Render (plan gratuit + keep-alive, temporaire — voir décision ci-dessous) | Fait tourner le backend Express (téléphonie/SMS) |
+| Hébergement dashboard | Vercel (URL par défaut, sans domaine personnalisé pour l'instant) | Fait tourner le Dashboard Next.js (Admin + Client), accessible publiquement depuis Internet |
 
 **Mise à jour du 2026-07-16 :** la base de données PostgreSQL, jusqu'ici prévue pour "MVP 3+", devient nécessaire dès le Sprint 5 (Dashboard Administrateur) — un dashboard multi-entreprises ne peut pas fonctionner sur Google Calendar seul comme mémoire. Voir « Convention pour les tâches futures » ci-dessous pour le découpage de tables déjà validé, et le plan de conception du Sprint 5 (`docs/sprint-log.md`) pour le détail technique retenu.
 
 ## Décision d'architecture — Hébergement
 
-**État actuel :** le backend tourne sur Render (plan gratuit), uniquement pour le développement et les démonstrations.
+**État actuel :** le backend (téléphonie/SMS) tourne sur Render (plan gratuit). Le Dashboard Next.js (Admin + Client) est déployé sur Vercel, URL par défaut sans domaine personnalisé.
 
-**Limite connue de ce plan :** le service se met en veille après une période d'inactivité, ce qui provoque un délai de démarrage à froid (« cold start ») pénalisant pour l'expérience utilisateur — concrètement, ce délai a fait échouer l'envoi du SMS de confirmation lors d'un vrai appel test (voir `docs/sprint-log.md`, Sprint 4). Un keep-alive (ping périodique du backend vers lui-même) a été mis en place comme **solution de contournement temporaire** pour éviter cette mise en veille pendant la phase de démonstration.
+**Limite connue du plan Render gratuit :** le service se met en veille après une période d'inactivité, ce qui provoque un délai de démarrage à froid (« cold start ») pénalisant pour l'expérience utilisateur — concrètement, ce délai a fait échouer l'envoi du SMS de confirmation lors d'un vrai appel test (voir `docs/sprint-log.md`, Sprint 4). Un keep-alive (ping périodique du backend vers lui-même) a été mis en place comme **solution de contournement temporaire** pour éviter cette mise en veille.
 
-**Vision production :** dès les premiers clients payants, cette solution de contournement sera abandonnée. Le backend de production devra tourner sur une infrastructure toujours active (Render Starter ou équivalent chez un autre hébergeur), avec ces objectifs :
+**Décision du 2026-07-22 (fondateur) : Render gratuit ne convient pas à une exploitation réelle et durable, mais ce risque est sciemment accepté pour le pilote mono-salon (Sprint 7, voir `docs/roadmap.md`).** Tant que Barber Concept n'a pas confirmé le projet, aucun abonnement payant n'est souscrit. Le volume d'un seul salon en pilote reste faible, et le keep-alive + le filet de sécurité (délai d'attente de l'outil SMS remonté à 40s, voir Sprint 4) limitent le risque résiduel sans l'éliminer. **Cette limite doit rester visible et non résolue tant que la migration n'a pas eu lieu** — ne pas la confondre avec une infrastructure de production.
+
+**Vision production :** dès que Barber Concept confirme le projet (au-delà du pilote) ou qu'une deuxième entreprise cliente réelle arrive, cette solution de contournement sera abandonnée. Le backend de production devra tourner sur une infrastructure toujours active (Render Starter ou équivalent chez un autre hébergeur), avec ces objectifs :
 - aucune mise en veille du backend ;
 - aucune latence au premier appel ;
 - disponibilité 24h/24 ;
