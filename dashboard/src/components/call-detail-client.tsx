@@ -97,7 +97,7 @@ export function CallDetailClient({ appel }: { appel: AppelDetailClient }) {
 
       <div className={sectionTitleClass}>Enregistrement audio</div>
       {appel.urlEnregistrement ? (
-        <audio controls src={appel.urlEnregistrement} className="h-9 w-full" />
+        <audio controls src={`/api/enregistrements/${appel.id}`} className="h-9 w-full" />
       ) : (
         <div className="rounded-md border border-border bg-paper px-3.5 py-2.5 text-[12px] font-semibold text-text-muted">
           Audio non disponible pour cet appel.
