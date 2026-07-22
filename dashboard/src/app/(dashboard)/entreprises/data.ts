@@ -25,6 +25,7 @@ export type EntrepriseListeItem = Pick<
 };
 
 const statutLabels: Record<EntrepriseModel["statut"], string> = {
+  brouillon: "Brouillon",
   essai: "Essai",
   actif: "Actif",
   suspendu: "Suspendu",

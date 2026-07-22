@@ -19,6 +19,7 @@ datasource db {
 // --- Enums (champs à valeurs fermées déjà listés dans docs/architecture.md) ---
 
 enum StatutEntreprise {
+  brouillon
   essai
   actif
   suspendu
@@ -136,6 +137,9 @@ model Entreprise {
   nom                 String
   secteur             String
   statut              StatutEntreprise @default(essai)
+  adresse             String?
+  langue              String           @default("fr")
+  fuseauHoraire       String           @default("Europe/Zurich") @map("fuseau_horaire")
   emailContact        String?          @map("email_contact")
   telephoneContact    String?          @map("telephone_contact")
   clerkOrganizationId String?          @unique @map("clerk_organization_id")
@@ -165,6 +169,11 @@ model Etablissement {
   adresse          String
   fuseauHoraire    String   @map("fuseau_horaire")
   googleCalendarId String?  @map("google_calendar_id")
+  /// Dates exceptionnelles de fermeture (jours fériés, congés) — le gabarit
+  /// hebdomadaire récurrent reste porté par `Disponibilite`, ceci ne couvre
+  /// que les exceptions ponctuelles. Format ISO (YYYY-MM-DD), pas de table
+  /// dédiée pour rester simple tant que le volume reste faible.
+  joursFermeture   String[] @default([]) @map("jours_fermeture")
   createdAt        DateTime @default(now()) @map("created_at")
 
   entreprise                Entreprise                 @relation(fields: [entrepriseId], references: [id])

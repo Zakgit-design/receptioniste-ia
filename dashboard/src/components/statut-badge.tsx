@@ -49,6 +49,8 @@ export function toneForStatutEntreprise(statut: StatutEntreprise): ToneBadge {
       return "good";
     case "essai":
       return "neutral";
+    case "brouillon":
+      return "neutral";
     case "suspendu":
       return "warn";
     case "resilie":
