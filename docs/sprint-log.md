@@ -527,6 +527,10 @@ Le build réparé ci-dessus a permis au déploiement d'aboutir (statut `READY`),
 
 Aucune donnée ni schéma Prisma modifiés pendant cet incident.
 
+### Tâche #79 — Invitation d'Henok volontairement mise en attente (2026-07-22)
+
+Le fondateur précise, distinctement de l'accueil positif déjà obtenu à la démonstration : Henok n'a pas encore donné son accord explicite pour un test réel dans l'un de ses salons. Décision : ne pas envoyer l'invitation Clerk tant que ce retour n'est pas obtenu — l'accueil positif porte sur l'intérêt général du projet, pas sur l'autorisation d'utiliser un vrai salon en conditions réelles, ce sont deux accords distincts. Le Dashboard Client reste prêt et fonctionnel (tâche #77) ; l'écran "Équipe et accès" permettra d'envoyer l'invitation en quelques secondes dès que le feu vert arrive — aucun travail technique supplémentaire n'est nécessaire à ce moment-là.
+
 ## Sprint 12 — Intégration Get Time
 Statut : reporté — en attente de la décision des associés de Barber Concept suite à la démonstration officielle à Henok.
 
