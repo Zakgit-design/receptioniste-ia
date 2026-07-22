@@ -27,11 +27,15 @@ function parseHeure(valeur: FormDataEntryValue | null): Date | null {
 }
 
 /**
- * Crée un établissement pour une entreprise en cours d'onboarding, avec son
- * gabarit hebdomadaire (Disponibilite) et ses jours de fermeture
- * exceptionnels. Toujours un nouvel établissement (pas de mise à jour ici) —
- * en ajouter un deuxième est une vraie intention, jamais un doublon
- * accidentel puisque rien ne se soumet sans clic explicite.
+ * Crée un établissement, avec son gabarit hebdomadaire (Disponibilite) et
+ * ses jours de fermeture exceptionnels. Toujours un nouvel établissement (pas
+ * de mise à jour ici) — en ajouter un deuxième est une vraie intention,
+ * jamais un doublon accidentel puisque rien ne se soumet sans clic explicite.
+ *
+ * Utilisable pendant l'onboarding (`brouillon`) **et** après (entreprise déjà
+ * `essai`/`actif`) — le fondateur doit pouvoir revenir modifier
+ * établissements/horaires à tout moment, pas seulement pendant la
+ * configuration initiale (voir docs/sprint-log.md, 2026-07-22).
  */
 export async function creerEtablissement(
   entrepriseId: string,
@@ -46,10 +50,10 @@ export async function creerEtablissement(
 
   const entreprise = await prisma.entreprise.findUnique({
     where: { id: entrepriseId },
-    select: { fuseauHoraire: true, statut: true },
+    select: { fuseauHoraire: true },
   });
-  if (!entreprise || entreprise.statut !== StatutEntreprise.brouillon) {
-    return { error: "Entreprise introuvable ou onboarding déjà terminé." };
+  if (!entreprise) {
+    return { error: "Entreprise introuvable." };
   }
 
   const joursFermetureBrut = String(formData.get("joursFermeture") ?? "").trim();
@@ -73,6 +77,55 @@ export async function creerEtablissement(
       disponibilites: { create: disponibilites },
     },
   });
+
+  revalidatePath(`/entreprises/${entrepriseId}/onboarding`);
+  return OK;
+}
+
+/**
+ * Modifie un établissement existant (nom, adresse, horaires, fermetures
+ * exceptionnelles) — le fondateur doit pouvoir revenir ajuster ces réglages
+ * à tout moment (voir docs/sprint-log.md, 2026-07-22), pas seulement à la
+ * création. Remplace entièrement le gabarit `Disponibilite` existant plutôt
+ * que de tenter un rapprochement jour par jour — plus simple et sans risque
+ * d'incohérence, le volume (7 lignes max par établissement) ne justifie pas
+ * plus complexe.
+ */
+export async function mettreAJourEtablissement(
+  etablissementId: string,
+  entrepriseId: string,
+  _prevState: OnboardingActionState,
+  formData: FormData
+): Promise<OnboardingActionState> {
+  const nom = String(formData.get("nom") ?? "").trim();
+  const adresse = String(formData.get("adresse") ?? "").trim();
+  if (!nom || !adresse) {
+    return { error: "Le nom et l'adresse sont obligatoires." };
+  }
+
+  const joursFermetureBrut = String(formData.get("joursFermeture") ?? "").trim();
+  const joursFermeture = joursFermetureBrut
+    ? joursFermetureBrut.split(",").map((date) => date.trim()).filter(Boolean)
+    : [];
+
+  const disponibilites = JOURS_SEMAINE.map((jourSemaine) => {
+    const heureDebut = parseHeure(formData.get(`heureDebut_${jourSemaine}`));
+    const heureFin = parseHeure(formData.get(`heureFin_${jourSemaine}`));
+    return heureDebut && heureFin ? { jourSemaine, heureDebut, heureFin } : null;
+  }).filter((d): d is { jourSemaine: number; heureDebut: Date; heureFin: Date } => d !== null);
+
+  await prisma.$transaction([
+    prisma.disponibilite.deleteMany({ where: { etablissementId } }),
+    prisma.etablissement.update({
+      where: { id: etablissementId },
+      data: {
+        nom,
+        adresse,
+        joursFermeture,
+        disponibilites: { create: disponibilites },
+      },
+    }),
+  ]);
 
   revalidatePath(`/entreprises/${entrepriseId}/onboarding`);
   return OK;

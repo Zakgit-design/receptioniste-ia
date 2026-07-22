@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,28 +9,37 @@ import { Label } from "@/components/ui/label";
 import { StatutBadge } from "@/components/statut-badge";
 import { InviterMembreEntrepriseDialog } from "@/components/inviter-membre-entreprise-dialog";
 import type { MembreOrganisation } from "@/auth";
+import type { StatutEntreprise } from "@/generated/prisma/enums";
 import {
   creerEtablissement,
+  mettreAJourEtablissement,
   creerService,
   basculerServiceActif,
   finaliserOnboarding,
   type OnboardingActionState,
 } from "@/app/(dashboard)/entreprises/[id]/onboarding/actions";
 
-// Parcours d'onboarding (Sprint A) — voir docs/sprint-log.md, 2026-07-22.
-// Toutes les étapes sont affichées sur une seule page (pas de routes
-// séparées par étape) : plus simple à reprendre (rien de caché, tout l'état
-// déjà saisi reste visible) et permet la navigation libre entre étapes
-// exigée par le fondateur. L'étape "courante" (mise en avant visuellement)
-// se déduit des données reçues du serveur, jamais d'un état local qui
-// pourrait se désynchroniser.
+// Parcours d'onboarding + écran de modification permanent (Sprint A, étendu
+// 2026-07-22) — voir docs/sprint-log.md. Toutes les sections sont affichées
+// sur une seule page (pas de routes séparées par étape) : plus simple à
+// reprendre (rien de caché, tout l'état déjà saisi reste visible) et permet
+// la navigation libre entre sections exigée par le fondateur. Reste
+// accessible après la fin de l'onboarding (statut != brouillon) — ajouter un
+// établissement/service ou modifier les horaires existants doit rester
+// possible à tout moment, pas seulement pendant la configuration initiale.
+
+interface DisponibiliteAffichee {
+  jourSemaine: number;
+  heureDebut: string; // HH:MM
+  heureFin: string; // HH:MM
+}
 
 interface EtablissementAffiche {
   id: string;
   nom: string;
   adresse: string;
   joursFermeture: string[];
-  nbDisponibilites: number;
+  disponibilites: DisponibiliteAffichee[];
 }
 
 interface ServiceAffiche {
@@ -85,6 +95,144 @@ function Section({
   );
 }
 
+/** Formulaire établissement — réutilisé pour la création et la modification. */
+function EtablissementForm({
+  entrepriseId,
+  existant,
+  onSubmitted,
+}: {
+  entrepriseId: string;
+  existant?: EtablissementAffiche;
+  onSubmitted?: () => void;
+}) {
+  const [erreur, setErreur] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
+
+  const horairesInitiaux = Object.fromEntries(
+    JOURS.map((jour) => {
+      const dispo = existant?.disponibilites.find((d) => d.jourSemaine === jour.valeur);
+      return [jour.valeur, { debut: dispo?.heureDebut ?? "", fin: dispo?.heureFin ?? "" }];
+    })
+  ) as Record<number, { debut: string; fin: string }>;
+  const etaitDeja247 = JOURS.every(
+    (jour) => horairesInitiaux[jour.valeur].debut === "00:00" && horairesInitiaux[jour.valeur].fin === "23:59"
+  );
+
+  const [ouvert247, setOuvert247] = useState(etaitDeja247);
+  const [horaires, setHoraires] = useState(horairesInitiaux);
+
+  function toggle247(checked: boolean) {
+    setOuvert247(checked);
+    if (checked) {
+      setHoraires(
+        Object.fromEntries(JOURS.map((jour) => [jour.valeur, { debut: "00:00", fin: "23:59" }])) as Record<
+          number,
+          { debut: string; fin: string }
+        >
+      );
+    }
+  }
+
+  function majJour(jourValeur: number, champ: "debut" | "fin", valeur: string) {
+    setHoraires((precedent) => ({ ...precedent, [jourValeur]: { ...precedent[jourValeur], [champ]: valeur } }));
+  }
+
+  function handleSubmit(formData: FormData) {
+    startTransition(async () => {
+      const result: OnboardingActionState = existant
+        ? await mettreAJourEtablissement(existant.id, entrepriseId, { error: null }, formData)
+        : await creerEtablissement(entrepriseId, { error: null }, formData);
+      setErreur(result.error);
+      if (!result.error) onSubmitted?.();
+    });
+  }
+
+  return (
+    <form action={handleSubmit} className="grid gap-2.5">
+      <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid gap-1">
+          <Label htmlFor={`etab-nom-${existant?.id ?? "nouveau"}`}>Nom de l&apos;établissement</Label>
+          <Input
+            id={`etab-nom-${existant?.id ?? "nouveau"}`}
+            name="nom"
+            required
+            defaultValue={existant?.nom}
+            placeholder="ex. Genève Centre"
+          />
+        </div>
+        <div className="grid gap-1">
+          <Label htmlFor={`etab-adresse-${existant?.id ?? "nouveau"}`}>Adresse</Label>
+          <Input
+            id={`etab-adresse-${existant?.id ?? "nouveau"}`}
+            name="adresse"
+            required
+            defaultValue={existant?.adresse}
+            placeholder="Rue de l'Exemple 1"
+          />
+        </div>
+      </div>
+
+      <div>
+        <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-text">
+          <input
+            type="checkbox"
+            checked={ouvert247}
+            onChange={(event) => toggle247(event.target.checked)}
+          />
+          Ouvert 24h/24, 7j/7
+        </label>
+        <Label>Horaires (laisser vide un jour = fermé ce jour-là)</Label>
+        <div className="mt-1.5 grid gap-1.5">
+          {JOURS.map((jour) => (
+            <div key={jour.valeur} className="flex items-center gap-2 text-[12px]">
+              <span className="w-20 shrink-0 font-semibold text-text-secondary">{jour.label}</span>
+              <Input
+                type="time"
+                name={`heureDebut_${jour.valeur}`}
+                className="w-32"
+                value={horaires[jour.valeur].debut}
+                onChange={(event) => majJour(jour.valeur, "debut", event.target.value)}
+                disabled={ouvert247}
+              />
+              <span className="text-text-muted">à</span>
+              <Input
+                type="time"
+                name={`heureFin_${jour.valeur}`}
+                className="w-32"
+                value={horaires[jour.valeur].fin}
+                onChange={(event) => majJour(jour.valeur, "fin", event.target.value)}
+                disabled={ouvert247}
+              />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid gap-1">
+        <Label htmlFor={`etab-fermetures-${existant?.id ?? "nouveau"}`}>
+          Jours de fermeture exceptionnelle (dates ISO séparées par des virgules)
+        </Label>
+        <Input
+          id={`etab-fermetures-${existant?.id ?? "nouveau"}`}
+          name="joursFermeture"
+          defaultValue={existant?.joursFermeture.join(", ")}
+          placeholder="2026-12-25, 2026-01-01"
+        />
+      </div>
+
+      {erreur ? <p className="text-sm text-destructive">{erreur}</p> : null}
+
+      <Button type="submit" size="sm" disabled={pending} className="w-fit">
+        {pending
+          ? "Enregistrement..."
+          : existant
+            ? "Enregistrer les modifications"
+            : "+ Ajouter cet établissement"}
+      </Button>
+    </form>
+  );
+}
+
 export function OnboardingWizard({
   entreprise,
   etablissements,
@@ -101,35 +249,26 @@ export function OnboardingWizard({
     emailContact: string | null;
     telephoneContact: string | null;
     clerkOrganizationId: string | null;
+    statut: StatutEntreprise;
   };
   etablissements: EtablissementAffiche[];
   services: ServiceAffiche[];
   membres: MembreOrganisation[];
 }) {
   const router = useRouter();
-  const [erreurEtablissement, setErreurEtablissement] = useState<string | null>(null);
+  const enBrouillon = entreprise.statut === "brouillon";
+  const [etablissementEnEdition, setEtablissementEnEdition] = useState<string | null>(null);
+  const [ajoutEtablissementOuvert, setAjoutEtablissementOuvert] = useState(etablissements.length === 0);
   const [erreurService, setErreurService] = useState<string | null>(null);
   const [erreurFinalisation, setErreurFinalisation] = useState<string | null>(null);
-  const [pendingEtablissement, startEtablissement] = useTransition();
   const [pendingService, startService] = useTransition();
   const [pendingFinalisation, startFinalisation] = useTransition();
 
   const aEtablissement = etablissements.length > 0;
   const aService = services.length > 0;
 
-  // Étape courante affichée en avant — déduite des données, pas d'un état séparé.
-  const etapeCourante = !aEtablissement ? 2 : !aService ? 3 : 4;
-
-  function handleEtablissement(formData: FormData) {
-    startEtablissement(async () => {
-      const result: OnboardingActionState = await creerEtablissement(
-        entreprise.id,
-        { error: null },
-        formData
-      );
-      setErreurEtablissement(result.error);
-    });
-  }
+  // Étape "en avant" — seulement pertinente pendant le brouillon (pré-activation).
+  const etapeCourante = !enBrouillon ? 5 : !aEtablissement ? 2 : !aService ? 3 : 4;
 
   function handleService(formData: FormData) {
     startService(async () => {
@@ -157,91 +296,99 @@ export function OnboardingWizard({
 
   return (
     <div className="mx-auto max-w-[720px]">
-      <div className="mb-[18px]">
-        <div className="text-lg font-extrabold text-text">Configurer {entreprise.nom}</div>
-        <div className="mt-1 text-[12.5px] font-semibold text-text-secondary">
-          Étape {etapeCourante} sur 5 — quitter et revenir reprend exactement là où tu en étais.
+      <div className="mb-[18px] flex items-center justify-between">
+        <div>
+          <div className="text-lg font-extrabold text-text">
+            {enBrouillon ? `Configurer ${entreprise.nom}` : `Établissements, catalogue et accès — ${entreprise.nom}`}
+          </div>
+          <div className="mt-1 text-[12.5px] font-semibold text-text-secondary">
+            {enBrouillon
+              ? `Étape ${etapeCourante} sur 5 — quitter et revenir reprend exactement là où tu en étais.`
+              : "Modifiable à tout moment — les changements sont enregistrés immédiatement."}
+          </div>
         </div>
+        {!enBrouillon ? (
+          <Link
+            href={`/entreprises/${entreprise.id}`}
+            className="text-xs font-bold text-text-secondary hover:text-text"
+          >
+            ← Retour à la fiche
+          </Link>
+        ) : null}
       </div>
 
-      {/* Étape 1 : toujours faite pour arriver sur cette page (entreprise en brouillon). */}
-      <Section numero={1} titre={`Entreprise — ${entreprise.nom}`} active={false} fait>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12.5px] text-text-secondary">
-          <div>Secteur : {entreprise.secteur}</div>
-          <div>Langue : {entreprise.langue}</div>
-          <div>Adresse : {entreprise.adresse ?? "—"}</div>
-          <div>Fuseau : {entreprise.fuseauHoraire}</div>
-        </div>
-      </Section>
+      {enBrouillon ? (
+        <Section numero={1} titre={`Entreprise — ${entreprise.nom}`} active={false} fait>
+          <div className="grid grid-cols-2 gap-x-4 gap-y-1.5 text-[12.5px] text-text-secondary">
+            <div>Secteur : {entreprise.secteur}</div>
+            <div>Langue : {entreprise.langue}</div>
+            <div>Adresse : {entreprise.adresse ?? "—"}</div>
+            <div>Fuseau : {entreprise.fuseauHoraire}</div>
+          </div>
+        </Section>
+      ) : null}
 
-      {/* Étape 2 : Établissement(s). */}
-      <Section numero={2} titre="Établissement" active={etapeCourante === 2} fait={aEtablissement}>
+      {/* Établissement(s). */}
+      <Section numero={2} titre="Établissements" active={etapeCourante === 2} fait={aEtablissement}>
         {etablissements.length > 0 ? (
           <div className="mb-3 flex flex-col gap-2">
             {etablissements.map((etab) => (
               <div key={etab.id} className="rounded-md border border-border bg-paper px-3 py-2 text-[12.5px]">
-                <span className="font-bold text-text">{etab.nom}</span>
-                <span className="ml-2 text-text-muted">{etab.adresse}</span>
-                <span className="ml-2 text-text-muted">
-                  · {etab.nbDisponibilites} jour{etab.nbDisponibilites !== 1 ? "s" : ""} horaire renseigné
-                  {etab.nbDisponibilites !== 1 ? "s" : ""}
-                  {etab.joursFermeture.length > 0
-                    ? ` · ${etab.joursFermeture.length} fermeture(s) exceptionnelle(s)`
-                    : ""}
-                </span>
+                {etablissementEnEdition === etab.id ? (
+                  <div>
+                    <EtablissementForm
+                      entrepriseId={entreprise.id}
+                      existant={etab}
+                      onSubmitted={() => setEtablissementEnEdition(null)}
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="mt-1.5"
+                      onClick={() => setEtablissementEnEdition(null)}
+                    >
+                      Annuler
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <span className="font-bold text-text">{etab.nom}</span>
+                      <span className="ml-2 text-text-muted">{etab.adresse}</span>
+                      <span className="ml-2 text-text-muted">
+                        · {etab.disponibilites.length} jour{etab.disponibilites.length !== 1 ? "s" : ""} horaire
+                        renseigné{etab.disponibilites.length !== 1 ? "s" : ""}
+                        {etab.joursFermeture.length > 0
+                          ? ` · ${etab.joursFermeture.length} fermeture(s) exceptionnelle(s)`
+                          : ""}
+                      </span>
+                    </div>
+                    <Button type="button" variant="ghost" size="sm" onClick={() => setEtablissementEnEdition(etab.id)}>
+                      Modifier
+                    </Button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
         ) : null}
 
-        <form action={handleEtablissement} className="grid gap-2.5">
-          <div className="grid grid-cols-2 gap-2.5">
-            <div className="grid gap-1">
-              <Label htmlFor="etab-nom">Nom de l&apos;établissement</Label>
-              <Input id="etab-nom" name="nom" required placeholder="ex. Genève Centre" />
-            </div>
-            <div className="grid gap-1">
-              <Label htmlFor="etab-adresse">Adresse</Label>
-              <Input id="etab-adresse" name="adresse" required placeholder="Rue de l'Exemple 1" />
-            </div>
-          </div>
-
-          <div>
-            <Label>Horaires (laisser vide un jour = fermé ce jour-là)</Label>
-            <div className="mt-1.5 grid gap-1.5">
-              {JOURS.map((jour) => (
-                <div key={jour.valeur} className="flex items-center gap-2 text-[12px]">
-                  <span className="w-20 shrink-0 font-semibold text-text-secondary">{jour.label}</span>
-                  <Input type="time" name={`heureDebut_${jour.valeur}`} className="w-32" />
-                  <span className="text-text-muted">à</span>
-                  <Input type="time" name={`heureFin_${jour.valeur}`} className="w-32" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="grid gap-1">
-            <Label htmlFor="etab-fermetures">
-              Jours de fermeture exceptionnelle (dates ISO séparées par des virgules)
-            </Label>
-            <Input id="etab-fermetures" name="joursFermeture" placeholder="2026-12-25, 2026-01-01" />
-          </div>
-
-          {erreurEtablissement ? (
-            <p className="text-sm text-destructive">{erreurEtablissement}</p>
-          ) : null}
-
-          <Button type="submit" size="sm" disabled={pendingEtablissement} className="w-fit">
-            {pendingEtablissement ? "Ajout..." : "+ Ajouter cet établissement"}
+        {ajoutEtablissementOuvert ? (
+          <EtablissementForm entrepriseId={entreprise.id} onSubmitted={() => {}} />
+        ) : (
+          <Button type="button" variant="outline" size="sm" onClick={() => setAjoutEtablissementOuvert(true)}>
+            + Ajouter un autre établissement
           </Button>
-        </form>
+        )}
       </Section>
 
-      {/* Étape 3 : Catalogue de services. */}
+      {/* Catalogue de services. */}
       <Section numero={3} titre="Catalogue de services" active={etapeCourante === 3} fait={aService}>
         <p className="mb-2.5 text-[11.5px] font-semibold text-text-muted">
           Limite connue (V1) : les services sont partagés par toute l&apos;entreprise, pas encore
-          spécifiques à un établissement précis — comme pour Barber Concept aujourd&apos;hui.
+          spécifiques à un établissement précis — comme pour Barber Concept aujourd&apos;hui. Aucune
+          limite en revanche sur le nombre de services que tu peux ajouter.
         </p>
 
         {services.length > 0 ? (
@@ -298,7 +445,7 @@ export function OnboardingWizard({
         </form>
       </Section>
 
-      {/* Étape 4 : Propriétaire et accès. */}
+      {/* Propriétaire et accès. */}
       <Section numero={4} titre="Propriétaire et accès" active={etapeCourante === 4} fait={membres.length > 0}>
         {entreprise.clerkOrganizationId ? (
           <>
@@ -328,46 +475,48 @@ export function OnboardingWizard({
         )}
       </Section>
 
-      {/* Étape 5 : Résumé. */}
-      <Section numero={5} titre="Résumé et activation" active={etapeCourante >= 4} fait={false}>
-        <div className="mb-3 grid gap-1.5 text-[12.5px]">
-          <div className="flex items-center gap-2">
-            <StatutBadge tone={aEtablissement ? "good" : "warn"}>
-              {aEtablissement ? `${etablissements.length} établissement(s)` : "Aucun établissement"}
-            </StatutBadge>
-            <StatutBadge tone={aService ? "good" : "warn"}>
-              {aService ? `${services.length} service(s)` : "Aucun service"}
-            </StatutBadge>
-            <StatutBadge tone={membres.length > 0 ? "good" : "neutral"}>
-              {membres.length > 0 ? "Accès configuré" : "Accès non configuré"}
-            </StatutBadge>
+      {/* Résumé — seulement pendant le brouillon ; une fois actif, rien à "finaliser". */}
+      {enBrouillon ? (
+        <Section numero={5} titre="Résumé et activation" active={etapeCourante >= 4} fait={false}>
+          <div className="mb-3 grid gap-1.5 text-[12.5px]">
+            <div className="flex items-center gap-2">
+              <StatutBadge tone={aEtablissement ? "good" : "warn"}>
+                {aEtablissement ? `${etablissements.length} établissement(s)` : "Aucun établissement"}
+              </StatutBadge>
+              <StatutBadge tone={aService ? "good" : "warn"}>
+                {aService ? `${services.length} service(s)` : "Aucun service"}
+              </StatutBadge>
+              <StatutBadge tone={membres.length > 0 ? "good" : "neutral"}>
+                {membres.length > 0 ? "Accès configuré" : "Accès non configuré"}
+              </StatutBadge>
+            </div>
+            <div className="flex items-center gap-2">
+              <StatutBadge tone="neutral">Assistant IA : non configuré</StatutBadge>
+              <StatutBadge tone="neutral">Numéro Twilio : non configuré</StatutBadge>
+              <StatutBadge tone="neutral">Calendrier : non configuré</StatutBadge>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
-            <StatutBadge tone="neutral">Assistant IA : non configuré</StatutBadge>
-            <StatutBadge tone="neutral">Numéro Twilio : non configuré</StatutBadge>
-            <StatutBadge tone="neutral">Calendrier : non configuré</StatutBadge>
-          </div>
-        </div>
-        <p className="mb-3 text-[11.5px] font-semibold text-text-muted">
-          Vapi, Twilio et le calendrier se configurent dans une étape séparée, une fois cette base
-          enregistrée.
-        </p>
-
-        {erreurFinalisation ? <p className="mb-2 text-sm text-destructive">{erreurFinalisation}</p> : null}
-
-        <Button
-          type="button"
-          disabled={!aEtablissement || !aService || pendingFinalisation}
-          onClick={handleFinaliser}
-        >
-          {pendingFinalisation ? "Enregistrement..." : "Enregistrer et continuer plus tard"}
-        </Button>
-        {(!aEtablissement || !aService) && (
-          <p className="mt-1.5 text-[11px] font-semibold text-text-muted">
-            Au moins un établissement et un service sont nécessaires avant d&apos;enregistrer.
+          <p className="mb-3 text-[11.5px] font-semibold text-text-muted">
+            Vapi, Twilio et le calendrier se configurent dans une étape séparée, une fois cette base
+            enregistrée. Tu pourras toujours revenir modifier établissements et catalogue après coup.
           </p>
-        )}
-      </Section>
+
+          {erreurFinalisation ? <p className="mb-2 text-sm text-destructive">{erreurFinalisation}</p> : null}
+
+          <Button
+            type="button"
+            disabled={!aEtablissement || !aService || pendingFinalisation}
+            onClick={handleFinaliser}
+          >
+            {pendingFinalisation ? "Enregistrement..." : "Enregistrer et continuer plus tard"}
+          </Button>
+          {(!aEtablissement || !aService) && (
+            <p className="mt-1.5 text-[11px] font-semibold text-text-muted">
+              Au moins un établissement et un service sont nécessaires avant d&apos;enregistrer.
+            </p>
+          )}
+        </Section>
+      ) : null}
     </div>
   );
 }

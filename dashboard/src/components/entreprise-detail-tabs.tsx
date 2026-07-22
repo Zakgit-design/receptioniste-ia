@@ -1,7 +1,9 @@
 "use client";
 
+import Link from "next/link";
 import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { PlaceholderPanel } from "@/components/placeholder-panel";
 import { EtablissementsTable } from "@/components/etablissements-table";
 import { StatutBadge } from "@/components/statut-badge";
@@ -83,6 +85,14 @@ export function EntrepriseDetailTabs({ entreprise }: { entreprise: EntrepriseDet
       </TabsContent>
 
       <TabsContent value="etablissements">
+        <div className="mb-3 flex items-center justify-between">
+          <span className="text-[11.5px] font-semibold text-text-muted">
+            Établissements, horaires et catalogue de services
+          </span>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/entreprises/${id}/onboarding`}>Modifier établissements &amp; catalogue</Link>
+          </Button>
+        </div>
         <EtablissementsTable etablissements={etablissements} />
       </TabsContent>
 

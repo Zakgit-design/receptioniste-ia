@@ -1,6 +1,5 @@
-import { redirect, notFound } from "next/navigation";
+import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { StatutEntreprise } from "@/generated/prisma/enums";
 import { listOrganizationMembers } from "@/auth";
 import { OnboardingWizard } from "@/components/onboarding-wizard";
 
@@ -9,12 +8,14 @@ import { OnboardingWizard } from "@/components/onboarding-wizard";
 // voir docs/sprint-log.md, 2026-07-22).
 export const dynamic = "force-dynamic";
 
-// Page unique du parcours d'onboarding (Sprint A) — l'étape à afficher se
-// déduit des données réelles (établissement(s)/service(s) déjà créés),
-// jamais d'une table de suivi séparée. Garde de sécurité en tout premier :
-// seule une entreprise en statut `brouillon` peut atteindre cette page — la
-// logique de ce sprint ne touche donc jamais Barber Concept (statut `actif`
-// depuis longtemps), même par une URL directe.
+// Page établissement(s)/catalogue/accès d'une entreprise — sert à la fois de
+// parcours guidé pendant l'onboarding (statut `brouillon`) et d'écran de
+// modification permanent une fois l'entreprise active (voir docs/sprint-log.md,
+// 2026-07-22 : le fondateur doit pouvoir revenir modifier horaires/catalogue
+// à tout moment, pas seulement pendant la configuration initiale — plus de
+// redirection une fois `brouillon` dépassé). L'étape "en avant" (cadre
+// signal) ne s'affiche que pendant le brouillon ; une fois actif, c'est un
+// simple écran de gestion sans notion d'étape.
 export default async function OnboardingPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
 
@@ -27,9 +28,6 @@ export default async function OnboardingPage({ params }: { params: Promise<{ id:
   });
   if (!entreprise) {
     notFound();
-  }
-  if (entreprise.statut !== StatutEntreprise.brouillon) {
-    redirect(`/entreprises/${id}`);
   }
 
   const membres = entreprise.clerkOrganizationId
@@ -48,13 +46,19 @@ export default async function OnboardingPage({ params }: { params: Promise<{ id:
         emailContact: entreprise.emailContact,
         telephoneContact: entreprise.telephoneContact,
         clerkOrganizationId: entreprise.clerkOrganizationId,
+        statut: entreprise.statut,
       }}
       etablissements={entreprise.etablissements.map((etablissement) => ({
         id: etablissement.id,
         nom: etablissement.nom,
         adresse: etablissement.adresse,
         joursFermeture: etablissement.joursFermeture,
-        nbDisponibilites: etablissement.disponibilites.length,
+        // Format HH:MM (UTC — colonne @db.Time(), voir actions.ts) pour préremplir le formulaire de modification.
+        disponibilites: etablissement.disponibilites.map((d) => ({
+          jourSemaine: d.jourSemaine,
+          heureDebut: d.heureDebut.toISOString().slice(11, 16),
+          heureFin: d.heureFin.toISOString().slice(11, 16),
+        })),
       }))}
       services={entreprise.services.map((service) => ({
         id: service.id,
