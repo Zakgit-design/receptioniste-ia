@@ -463,13 +463,32 @@ Les 3 appels ont un statut `termine` (aucun `echoue` dans cette passe précise �
 - Tarifs étudiants et prestations spécifiques par salon (Coupe Henok à Rive, locks/twists aux Eaux-Vives) non seedés dans `services` — une réservation réelle pour l'une de ces prestations spécifiques ne trouve pas de correspondance et reste "non déterminée".
 - Vue d'ensemble/Finances/Santé plateforme (admin) restent sur données de démo — sujet volontairement hors périmètre de ce chantier (voir clôture du Sprint 5).
 
-## Sprint 7 — Intégration Get Time
-Statut : volontairement reporté (pas de présentation officielle du projet à Henok pour l'instant).
+## Pivot stratégique — déploiement réel et industrialisation de l'onboarding (2026-07-22)
 
-## Sprint 8 — Transfert humain
-Statut : pas commencé, reporté (déprioritisé au profit des dashboards le 2026-07-16 — voir « Pivot stratégique » ci-dessus). Contenu inchangé par rapport à l'ancien Sprint 5.
+**Contexte :** la démonstration officielle du projet à Henok a eu lieu. Accueil positif, mais décision finale en attente de ses associés. La validation du client pilote (bloquante pour Get Time, voir ancien statut Sprint 7 ci-dessous) n'est donc plus un prérequis.
 
-## Sprint 9 — Polish et répétition
+**Décision du fondateur, à la suite d'un cadrage stratégique de type CTO :** plutôt que d'enchaîner sur les sprints déjà prévus (Get Time, transfert humain, polish), la priorité immédiate devient double :
+1. **Préparer un vrai déploiement chez Barber Concept** — au-delà de la démo déjà testée, avec de vrais appels clients quotidiens sur les 6 salons.
+2. **Industrialiser l'onboarding d'une deuxième entreprise** — condition réelle de "SaaS commercialisable" (vision `CLAUDE.md` : des dizaines puis des centaines d'entreprises clientes).
+
+**Raisonnement clé retenu :** ces deux objectifs partagent le même verrou technique. Aujourd'hui, un seul numéro/assistant/agenda est partagé entre les 6 salons Barber Concept — simplification acceptée en Sprint 3 pour la démo, mais qui cause déjà deux problèmes réels : de faux conflits d'agenda entre salons (un RDV à Cornavin peut bloquer à tort le même créneau à Sion) et une attribution d'établissement incomplète dans le Dashboard Client (seul Cornavin est correctement configuré). Construire un mécanisme générique de provisioning par établissement (numéro + assistant + agenda + outils) résout ce problème pour Barber Concept **et** devient directement l'outil de base pour onboarder toute nouvelle entreprise — un seul chantier d'ingénierie, deux bénéfices.
+
+**Roadmap réorganisée en conséquence** (`docs/roadmap.md`, nouveaux Sprints 7-11, anciens Sprints 7-9 renumérotés 12-14) :
+- Sprint 7 — Déploiement réel Barber Concept (provisioning multi-établissements, tâches #76-79)
+- Sprint 8 — Catalogue de services complet et généralisé (tâches #80-82)
+- Sprint 9 — Infrastructure de production toujours active (tâches #47-49, déclencheur mis à jour : motivé par le déploiement réel plutôt que par un hypothétique premier client payant)
+- Sprint 10 — Onboarding industrialisé d'une nouvelle entreprise (tâches #83-86)
+- Sprint 11 — Supervision minimale réelle (tâches #87-88)
+
+**Volontairement laissé de côté pour l'instant, pas oublié :** la facturation réelle (Stripe) reste hors périmètre tant qu'aucune relation commerciale formelle n'est signée avec Barber Concept ou un futur client — à réintroduire dès qu'un accord commercial se concrétise.
+
+## Sprint 12 — Intégration Get Time
+Statut : reporté — en attente de la décision des associés de Barber Concept suite à la démonstration officielle à Henok.
+
+## Sprint 13 — Transfert humain
+Statut : pas commencé, reporté (déprioritisé au profit du déploiement réel et de l'onboarding le 2026-07-22 — voir « Pivot stratégique » ci-dessus). Contenu inchangé par rapport à l'ancien Sprint 5. À réévaluer plus tôt si un futur client hors coiffure (dentaire, médical, garage) le signale comme bloquant.
+
+## Sprint 14 — Polish et répétition
 Statut : pas commencé.
 
 ## Transparence et consentement — enregistrement des appels
