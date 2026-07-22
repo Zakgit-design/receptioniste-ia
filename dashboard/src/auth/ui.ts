@@ -5,4 +5,4 @@
 // règle reste la même : c'est le seul fichier en dehors de `src/auth/` qui
 // devrait avoir besoin d'importer directement depuis `@clerk/nextjs`, pour
 // qu'une future migration hors de Clerk reste circonscrite à ce dossier.
-export { UserButton } from "@clerk/nextjs";
+export { UserButton, useClerk, useUser } from "@clerk/nextjs";

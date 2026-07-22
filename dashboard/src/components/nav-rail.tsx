@@ -18,7 +18,7 @@ import {
 import type { NavGroup, NavIconName } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { getOverviewData } from "@/app/(dashboard)/data";
-import { UserButton } from "@/auth/ui";
+import { UserButton, useClerk, useUser } from "@/auth/ui";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 
@@ -110,6 +110,53 @@ function NavList({
   );
 }
 
+// Remplace le `UserButton` (widget à popover Clerk) dans le panneau mobile :
+// un popover Clerk portalé pendant que notre propre panneau (Radix Dialog)
+// est encore ouvert entrait en conflit avec lui (fermeture immédiate au
+// clic, bug trouvé le 2026-07-22). Ici, chaque action ferme d'abord le
+// panneau (`onNavigate`) avant d'appeler l'API Clerk correspondante — le
+// popover/modal Clerk s'ouvre alors dans un contexte normal, sans dialog
+// imbriqué. Uniquement utilisé côté mobile ; `NavRail` (desktop) garde le
+// vrai `UserButton`, inchangé.
+function MobileAccountMenu({ onNavigate }: { onNavigate: () => void }) {
+  const { signOut, openUserProfile } = useClerk();
+  const { user } = useUser();
+
+  return (
+    <div className="flex flex-col gap-0.5 border-t border-border pt-3 pl-1.5">
+      <div className="flex items-center gap-2 px-1.5 pb-1.5">
+        {user?.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element -- avatar Clerk, URL externe déjà optimisée par Clerk
+          <img src={user.imageUrl} alt="" className="h-[26px] w-[26px] shrink-0 rounded-full" />
+        ) : null}
+        <span className="truncate text-[12.5px] font-bold text-text">
+          {user?.fullName || user?.primaryEmailAddress?.emailAddress}
+        </span>
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          onNavigate();
+          openUserProfile();
+        }}
+        className="rounded-[4px] px-2.5 py-[7px] text-left text-[13px] font-semibold text-text-secondary hover:bg-paper hover:text-text"
+      >
+        Gérer le compte
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          onNavigate();
+          signOut();
+        }}
+        className="rounded-[4px] px-2.5 py-[7px] text-left text-[13px] font-semibold text-text-secondary hover:bg-paper hover:text-text"
+      >
+        Se déconnecter
+      </button>
+    </div>
+  );
+}
+
 function useActionsOuvertes() {
   // Compteur du centre d'actions, visible depuis tout écran (voir
   // docs/sprint5-conception.md, section 2) — même source de données que la
@@ -167,12 +214,12 @@ export function MobileNav({
   const actionsOuvertes = useActionsOuvertes();
 
   return (
-    // `modal={false}` : sans ça, Radix rend tout ce qui est hors du panneau
-    // inerte tant qu'il est ouvert — y compris le popover Clerk du UserButton
-    // (portalé ailleurs dans le DOM), dont "Gérer le compte"/"Se déconnecter"
-    // devenaient alors inutilisables. Le panneau se ferme toujours au clic
-    // extérieur et à Échap (comportement Radix conservé sans le mode modal).
-    <Sheet open={open} onOpenChange={setOpen} modal={false}>
+    // Modal (comportement par défaut) : verrouille le défilement de la page
+    // et piège le focus tant que le panneau est ouvert — sûr maintenant que
+    // plus aucun popover Clerk (portalé ailleurs dans le DOM) n'est rendu à
+    // l'intérieur (voir MobileAccountMenu ci-dessus, qui ferme le panneau
+    // avant d'appeler l'API Clerk plutôt que d'imbriquer son popover ici).
+    <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
         <Button
           variant="ghost"
@@ -191,19 +238,7 @@ export function MobileNav({
           actionsOuvertes={actionsOuvertes}
           onNavigate={() => setOpen(false)}
         />
-        <div className="flex items-center gap-2 border-t border-border pt-3 pl-1.5">
-          <UserButton
-            showName
-            appearance={{
-              elements: {
-                rootBox: "w-full",
-                userButtonBox: "flex-row-reverse gap-2 w-full",
-                userButtonOuterIdentifier: "text-[12.5px] font-bold text-text pl-0",
-                avatarBox: "h-[26px] w-[26px]",
-              },
-            }}
-          />
-        </div>
+        <MobileAccountMenu onNavigate={() => setOpen(false)} />
       </SheetContent>
     </Sheet>
   );
