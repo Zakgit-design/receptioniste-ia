@@ -114,27 +114,53 @@ function EtablissementForm({
       return [jour.valeur, { debut: dispo?.heureDebut ?? "", fin: dispo?.heureFin ?? "" }];
     })
   ) as Record<number, { debut: string; fin: string }>;
-  const etaitDeja247 = JOURS.every(
-    (jour) => horairesInitiaux[jour.valeur].debut === "00:00" && horairesInitiaux[jour.valeur].fin === "23:59"
-  );
 
-  const [ouvert247, setOuvert247] = useState(etaitDeja247);
   const [horaires, setHoraires] = useState(horairesInitiaux);
-
-  function toggle247(checked: boolean) {
-    setOuvert247(checked);
-    if (checked) {
-      setHoraires(
-        Object.fromEntries(JOURS.map((jour) => [jour.valeur, { debut: "00:00", fin: "23:59" }])) as Record<
-          number,
-          { debut: string; fin: string }
-        >
-      );
-    }
-  }
+  // "Ouvert" (quels jours) et "24h/24" (durée d'ouverture ce jour-là) sont deux
+  // réglages indépendants — un établissement peut être ouvert 24h/24 mais
+  // fermé le dimanche, ou ouvert tous les jours avec des horaires normaux.
+  const [ouverts, setOuverts] = useState<Record<number, boolean>>(
+    Object.fromEntries(JOURS.map((jour) => [jour.valeur, horairesInitiaux[jour.valeur].debut !== ""])) as Record<
+      number,
+      boolean
+    >
+  );
 
   function majJour(jourValeur: number, champ: "debut" | "fin", valeur: string) {
     setHoraires((precedent) => ({ ...precedent, [jourValeur]: { ...precedent[jourValeur], [champ]: valeur } }));
+  }
+
+  function toggleJourOuvert(jourValeur: number, ouvert: boolean) {
+    setOuverts((precedent) => ({ ...precedent, [jourValeur]: ouvert }));
+    // En ouvrant un jour qui n'avait jamais d'horaire, propose un défaut raisonnable plutôt que de laisser vide.
+    if (ouvert && !horaires[jourValeur].debut) {
+      setHoraires((precedent) => ({ ...precedent, [jourValeur]: { debut: "09:00", fin: "18:00" } }));
+    }
+  }
+
+  /** Raccourci "7j/7" : ouvre tous les jours, sans toucher à la durée d'ouverture de chacun. */
+  function toutOuvrir() {
+    setOuverts(Object.fromEntries(JOURS.map((jour) => [jour.valeur, true])) as Record<number, boolean>);
+    setHoraires((precedent) =>
+      Object.fromEntries(
+        JOURS.map((jour) => [
+          jour.valeur,
+          precedent[jour.valeur].debut ? precedent[jour.valeur] : { debut: "09:00", fin: "18:00" },
+        ])
+      ) as Record<number, { debut: string; fin: string }>
+    );
+  }
+
+  /** Raccourci "24h/24" : étend les jours déjà ouverts à la journée complète — ne touche jamais un jour fermé. */
+  function remplir2424SurJoursOuverts() {
+    setHoraires((precedent) =>
+      Object.fromEntries(
+        JOURS.map((jour) => [
+          jour.valeur,
+          ouverts[jour.valeur] ? { debut: "00:00", fin: "23:59" } : precedent[jour.valeur],
+        ])
+      ) as Record<number, { debut: string; fin: string }>
+    );
   }
 
   function handleSubmit(formData: FormData) {
@@ -173,26 +199,37 @@ function EtablissementForm({
       </div>
 
       <div>
-        <label className="mb-1.5 flex items-center gap-1.5 text-[12px] font-bold text-text">
-          <input
-            type="checkbox"
-            checked={ouvert247}
-            onChange={(event) => toggle247(event.target.checked)}
-          />
-          Ouvert 24h/24, 7j/7
-        </label>
-        <Label>Horaires (laisser vide un jour = fermé ce jour-là)</Label>
-        <div className="mt-1.5 grid gap-1.5">
+        <div className="mb-1.5 flex items-center gap-2">
+          <Label className="mb-0">Horaires</Label>
+          <Button type="button" variant="outline" size="xs" onClick={toutOuvrir}>
+            Ouvrir tous les jours (7j/7)
+          </Button>
+          <Button type="button" variant="outline" size="xs" onClick={remplir2424SurJoursOuverts}>
+            24h/24 sur les jours ouverts
+          </Button>
+        </div>
+        <p className="mb-1.5 text-[11px] font-semibold text-text-muted">
+          Les deux réglages sont indépendants — un établissement peut être ouvert 24h/24 mais fermé
+          le dimanche, par exemple.
+        </p>
+        <div className="grid gap-1.5">
           {JOURS.map((jour) => (
             <div key={jour.valeur} className="flex items-center gap-2 text-[12px]">
-              <span className="w-20 shrink-0 font-semibold text-text-secondary">{jour.label}</span>
+              <label className="flex w-24 shrink-0 items-center gap-1.5 font-semibold text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={ouverts[jour.valeur]}
+                  onChange={(event) => toggleJourOuvert(jour.valeur, event.target.checked)}
+                />
+                {jour.label}
+              </label>
               <Input
                 type="time"
                 name={`heureDebut_${jour.valeur}`}
                 className="w-32"
                 value={horaires[jour.valeur].debut}
                 onChange={(event) => majJour(jour.valeur, "debut", event.target.value)}
-                disabled={ouvert247}
+                disabled={!ouverts[jour.valeur]}
               />
               <span className="text-text-muted">à</span>
               <Input
@@ -201,7 +238,7 @@ function EtablissementForm({
                 className="w-32"
                 value={horaires[jour.valeur].fin}
                 onChange={(event) => majJour(jour.valeur, "fin", event.target.value)}
-                disabled={ouvert247}
+                disabled={!ouverts[jour.valeur]}
               />
             </div>
           ))}
