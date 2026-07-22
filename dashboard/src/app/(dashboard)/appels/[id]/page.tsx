@@ -3,6 +3,12 @@ import { notFound } from "next/navigation";
 import { CallDetail } from "@/components/call-detail";
 import { getAppelDetail } from "../data";
 
+// Force le rendu dynamique — sans ce flag, une page dynamique ([id] sans
+// generateStaticParams) est mise en cache après sa première visite et
+// resservie telle quelle indéfiniment (bug réel trouvé le 2026-07-22, voir
+// docs/sprint-log.md).
+export const dynamic = "force-dynamic";
+
 // Visite directe ou actualisation de page : fiche appel en page complète (pas
 // de drawer, voir docs/sprint5-conception.md, section 8 — en navigation
 // depuis /appels, la route interceptante @drawer/(.)appels/[id] prend le

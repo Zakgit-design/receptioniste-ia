@@ -5,10 +5,17 @@ import { EntrepriseDetailTabs } from "@/components/entreprise-detail-tabs";
 import { SupprimerEntrepriseDialog } from "@/components/supprimer-entreprise-dialog";
 import { getEntrepriseDetail } from "../data";
 
-// Détail d'une entreprise — onglets dans docs/sprint5-conception.md, section
-// 3. `getEntrepriseDetail` cherche d'abord parmi les entreprises de
-// démonstration, puis en base (voir ../data.ts). `id` inconnu des deux -> 404
-// propre plutôt qu'un plantage.
+// Force le rendu dynamique : sans ce flag, Next.js met en cache la sortie de
+// cette page dynamique ([id] sans generateStaticParams) après sa première
+// visite et la ressert telle quelle indéfiniment — un utilisateur voyait donc
+// une version figée au moment du premier chargement, jamais les nouvelles
+// données (bug réel trouvé le 2026-07-22 : l'onglet Utilisateurs affichait
+// encore l'ancien texte de démonstration après son branchement sur Clerk).
+// Même raison que /entreprises (voir docs/sprint-log.md, même date).
+export const dynamic = "force-dynamic";
+
+// Détail d'une entreprise — onglets dans docs/sprint5-conception.md, section 3.
+// `id` inconnu en base -> 404 propre plutôt qu'un plantage.
 export default async function EntrepriseDetailPage({
   params,
 }: {

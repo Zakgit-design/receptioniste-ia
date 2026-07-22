@@ -4,6 +4,10 @@ import { CallDrawer } from "@/components/call-drawer";
 import { CallDetailClient } from "@/components/call-detail-client";
 import { getAppelDetailClient } from "@/app/(client)/app/appels/data";
 
+// Force le rendu dynamique explicitement — voir app/appels/[id]/page.tsx pour
+// le raisonnement complet (bug réel trouvé le 2026-07-22).
+export const dynamic = "force-dynamic";
+
 // Intercepte la navigation en clic depuis /app/appels vers /app/appels/[id]
 // pour afficher la fiche en panneau latéral (URL réelle, liste toujours
 // visible derrière) — voir docs/roadmap.md, tâche #67, et

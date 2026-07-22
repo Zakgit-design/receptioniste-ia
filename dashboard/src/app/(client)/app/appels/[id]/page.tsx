@@ -4,6 +4,12 @@ import { getCurrentUser } from "@/auth";
 import { CallDetailClient } from "@/components/call-detail-client";
 import { getAppelDetailClient } from "../data";
 
+// Force le rendu dynamique explicitement — `getCurrentUser()` (Clerk `auth()`)
+// devrait déjà suffire à empêcher la mise en cache, mais après le bug réel
+// trouvé le 2026-07-22 sur les pages [id] admin qui n'avaient pas cette
+// protection (voir docs/sprint-log.md), plus aucun doute laissé ici non plus.
+export const dynamic = "force-dynamic";
+
 // Visite directe ou actualisation de page : fiche appel en page complète (pas
 // de drawer, voir docs/roadmap.md, tâche #67 — même principe que côté admin,
 // docs/sprint5-conception.md, section 8). En navigation depuis /app/appels,
