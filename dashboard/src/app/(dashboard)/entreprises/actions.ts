@@ -7,16 +7,19 @@ import { StatutEntreprise, type RoleUtilisateur } from "@/generated/prisma/enums
 import { createOrganizationForEntreprise, isClerkConfigured, getCurrentUser, inviteUser } from "@/auth";
 
 // Server action pour le formulaire "+ Nouvelle entreprise" (voir
-// docs/roadmap.md, Sprint 5, tâche 59). Champs minimaux du modèle
-// `Entreprise` (prisma/schema.prisma) : pas d'établissements/agents/services
-// ici, hors périmètre de cette tâche.
+// docs/roadmap.md, Sprint 5, tâche 59 ; étendu Sprint A onboarding
+// industrialisé, 2026-07-22). Point d'entrée de l'Étape 1 du wizard : crée
+// toujours l'entreprise en statut `brouillon` (jamais de sélecteur de statut
+// côté formulaire — voir nouvelle-entreprise-dialog.tsx), le reste du
+// parcours (établissement/services/accès) se passe sur
+// /entreprises/{id}/onboarding, jamais ici.
 
 export interface CreateEntrepriseState {
   error: string | null;
   success: boolean;
+  /** Id de l'entreprise créée — le dialog redirige vers son onboarding. */
+  entrepriseId: string | null;
 }
-
-const statutsValides = Object.values(StatutEntreprise);
 
 export async function createEntreprise(
   _previousState: CreateEntrepriseState,
@@ -24,17 +27,15 @@ export async function createEntreprise(
 ): Promise<CreateEntrepriseState> {
   const nom = String(formData.get("nom") ?? "").trim();
   const secteur = String(formData.get("secteur") ?? "").trim();
-  const statutBrut = String(formData.get("statut") ?? StatutEntreprise.essai);
+  const adresse = String(formData.get("adresse") ?? "").trim();
+  const langue = String(formData.get("langue") ?? "fr").trim() || "fr";
+  const fuseauHoraire = String(formData.get("fuseauHoraire") ?? "Europe/Zurich").trim() || "Europe/Zurich";
   const emailContact = String(formData.get("emailContact") ?? "").trim();
   const telephoneContact = String(formData.get("telephoneContact") ?? "").trim();
 
   if (!nom || !secteur) {
-    return { error: "Le nom et le secteur sont obligatoires.", success: false };
+    return { error: "Le nom et le secteur sont obligatoires.", success: false, entrepriseId: null };
   }
-
-  const statut = statutsValides.includes(statutBrut as StatutEntreprise)
-    ? (statutBrut as StatutEntreprise)
-    : StatutEntreprise.essai;
 
   // Une Entreprise = une Organisation Clerk (voir docs/architecture.md,
   // section Authentification, et docs/sprint6-conception.md, section 0.1) —
@@ -45,11 +46,14 @@ export async function createEntreprise(
     ? await createOrganizationForEntreprise(nom)
     : null;
 
-  await prisma.entreprise.create({
+  const entreprise = await prisma.entreprise.create({
     data: {
       nom,
       secteur,
-      statut,
+      statut: StatutEntreprise.brouillon,
+      adresse: adresse || null,
+      langue,
+      fuseauHoraire,
       emailContact: emailContact || null,
       telephoneContact: telephoneContact || null,
       clerkOrganizationId,
@@ -57,7 +61,7 @@ export async function createEntreprise(
   });
 
   revalidatePath("/entreprises");
-  return { error: null, success: true };
+  return { error: null, success: true, entrepriseId: entreprise.id };
 }
 
 export interface DeleteEntrepriseState {

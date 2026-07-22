@@ -242,12 +242,17 @@ model AgentIA {
 }
 
 model Service {
-  id           String  @id @default(uuid())
-  entrepriseId String  @map("entreprise_id")
+  id           String   @id @default(uuid())
+  entrepriseId String   @map("entreprise_id")
   nom          String
-  dureeMinutes Int     @map("duree_minutes")
-  prix         Decimal @db.Decimal(10, 2)
+  dureeMinutes Int      @map("duree_minutes")
+  /// Optionnel (relâche une contrainte existante) — un service peut être créé
+  /// pendant l'onboarding avant que le tarif ne soit fixé.
+  prix         Decimal? @db.Decimal(10, 2)
   description  String?
+  /// Désactivation sans suppression (voir onboarding, étape Catalogue) —
+  /// défaut `true` : les services existants (Barber Concept) restent actifs.
+  actif        Boolean  @default(true)
 
   entreprise Entreprise   @relation(fields: [entrepriseId], references: [id])
   rendezVous RendezVous[]

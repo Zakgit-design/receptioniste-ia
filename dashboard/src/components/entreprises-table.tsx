@@ -10,6 +10,14 @@ import type { StatutSanteAffiche } from "@/components/sante-pill";
 
 export type EntrepriseListeRow = EntrepriseListeItem & { sante: StatutSanteAffiche };
 
+// Une entreprise en brouillon (onboarding non terminé, voir Sprint A) mène
+// vers la reprise de son parcours plutôt que la fiche normale.
+function lienEntreprise(entreprise: EntrepriseListeRow): string {
+  return entreprise.statut === "brouillon"
+    ? `/entreprises/${entreprise.id}/onboarding`
+    : `/entreprises/${entreprise.id}`;
+}
+
 const thClass =
   "px-4 py-[9px] text-left text-[10.5px] font-bold tracking-[0.05em] text-text-muted uppercase whitespace-nowrap";
 
@@ -75,9 +83,9 @@ export function EntreprisesTable({ entreprises }: { entreprises: EntrepriseListe
                 key={entreprise.id}
                 role="link"
                 tabIndex={0}
-                onClick={() => router.push(`/entreprises/${entreprise.id}`)}
+                onClick={() => router.push(lienEntreprise(entreprise))}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter") router.push(`/entreprises/${entreprise.id}`);
+                  if (event.key === "Enter") router.push(lienEntreprise(entreprise));
                 }}
                 className="cursor-pointer border-b border-border last:border-b-0 hover:bg-paper focus-visible:bg-paper focus-visible:outline-none"
               >
@@ -99,7 +107,11 @@ export function EntreprisesTable({ entreprises }: { entreprises: EntrepriseListe
                   </StatutBadge>
                 </td>
                 <td className="px-4 py-[11px] whitespace-nowrap text-text-secondary">
-                  {entreprise.planLabel}
+                  {entreprise.statut === "brouillon" ? (
+                    <span className="font-bold text-signal">Continuer la configuration →</span>
+                  ) : (
+                    entreprise.planLabel
+                  )}
                 </td>
                 <td className="px-4 py-[11px] whitespace-nowrap font-mono">
                   {entreprise.appelsSeptJours}

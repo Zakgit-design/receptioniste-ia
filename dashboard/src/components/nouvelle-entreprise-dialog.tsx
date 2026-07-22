@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,32 +14,32 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { createEntreprise } from "@/app/(dashboard)/entreprises/actions";
 
-// Bouton "+ Nouvelle entreprise" (docs/roadmap.md, Sprint 5, tâche 59) : ouvre
-// un formulaire minimal (nom, secteur, statut, contact) qui crée la ligne via
-// la server action `createEntreprise`. Se ferme automatiquement à la création.
+// Bouton "+ Nouvelle entreprise" — Étape 1 de l'onboarding admin (voir
+// docs/roadmap.md, Sprint 5 tâche 59 ; étendu Sprint A onboarding
+// industrialisé, 2026-07-22). Crée toujours l'entreprise en statut
+// `brouillon` (plus de sélecteur de statut ici) puis redirige vers son
+// parcours d'onboarding — ne se contente plus de fermer la fenêtre.
 export function NouvelleEntrepriseDialog() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
 
   function handleSubmit(formData: FormData) {
     startTransition(async () => {
-      const result = await createEntreprise({ error: null, success: false }, formData);
-      if (result.error) {
-        setError(result.error);
+      const result = await createEntreprise(
+        { error: null, success: false, entrepriseId: null },
+        formData
+      );
+      if (result.error || !result.entrepriseId) {
+        setError(result.error ?? "Erreur inattendue.");
         return;
       }
       setError(null);
       setOpen(false);
+      router.push(`/entreprises/${result.entrepriseId}/onboarding`);
     });
   }
 
@@ -51,38 +52,40 @@ export function NouvelleEntrepriseDialog() {
         <DialogHeader>
           <DialogTitle>Nouvelle entreprise</DialogTitle>
           <DialogDescription>
-            Ajoute une nouvelle entreprise cliente sur la plateforme.
+            Étape 1 sur 5 — les étapes suivantes (établissement, catalogue, accès) se
+            configurent juste après.
           </DialogDescription>
         </DialogHeader>
 
         <form action={handleSubmit} className="grid gap-3">
           <div className="grid gap-1.5">
-            <Label htmlFor="nom">Nom</Label>
-            <Input id="nom" name="nom" required placeholder="ex. Barber Concept" />
+            <Label htmlFor="nom">Nom commercial</Label>
+            <Input id="nom" name="nom" required placeholder="ex. Ms Savané" />
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="secteur">Secteur</Label>
+            <Label htmlFor="secteur">Secteur d&apos;activité</Label>
             <Input id="secteur" name="secteur" required placeholder="ex. Coiffure / Barbier" />
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="statut">Statut</Label>
-            <Select name="statut" defaultValue="essai">
-              <SelectTrigger id="statut" className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="essai">Essai</SelectItem>
-                <SelectItem value="actif">Actif</SelectItem>
-                <SelectItem value="suspendu">Suspendu</SelectItem>
-                <SelectItem value="resilie">Résilié</SelectItem>
-              </SelectContent>
-            </Select>
+            <Label htmlFor="adresse">Adresse</Label>
+            <Input id="adresse" name="adresse" placeholder="Rue de l'Exemple 1, Genève" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-1.5">
+              <Label htmlFor="langue">Langue</Label>
+              <Input id="langue" name="langue" defaultValue="fr" />
+            </div>
+            <div className="grid gap-1.5">
+              <Label htmlFor="fuseauHoraire">Fuseau horaire</Label>
+              <Input id="fuseauHoraire" name="fuseauHoraire" defaultValue="Europe/Zurich" />
+            </div>
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="emailContact">Email de contact</Label>
+            <Label htmlFor="emailContact">Email principal</Label>
             <Input
               id="emailContact"
               name="emailContact"
@@ -92,7 +95,7 @@ export function NouvelleEntrepriseDialog() {
           </div>
 
           <div className="grid gap-1.5">
-            <Label htmlFor="telephoneContact">Téléphone de contact</Label>
+            <Label htmlFor="telephoneContact">Téléphone principal</Label>
             <Input
               id="telephoneContact"
               name="telephoneContact"
@@ -104,7 +107,7 @@ export function NouvelleEntrepriseDialog() {
 
           <DialogFooter>
             <Button type="submit" disabled={pending}>
-              {pending ? "Création..." : "Créer l'entreprise"}
+              {pending ? "Création..." : "Créer et continuer"}
             </Button>
           </DialogFooter>
         </form>

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { StatutBadge, toneForStatutEntreprise } from "@/components/statut-badge";
+import { Button } from "@/components/ui/button";
 import { EntrepriseDetailTabs } from "@/components/entreprise-detail-tabs";
 import { SupprimerEntrepriseDialog } from "@/components/supprimer-entreprise-dialog";
 import { getEntrepriseDetail } from "../data";
@@ -68,6 +69,18 @@ export default async function EntrepriseDetailPage({
           <SupprimerEntrepriseDialog id={entreprise.id} nom={entreprise.nom} />
         )}
       </div>
+
+      {entreprise.statut === "brouillon" ? (
+        <div className="mb-3.5 flex items-center justify-between rounded-lg border border-signal bg-surface px-4 py-3">
+          <span className="text-[12.5px] font-semibold text-text">
+            Configuration pas encore terminée — établissement, catalogue, accès et ressources
+            techniques (Vapi/Twilio/Calendrier) restent à finaliser.
+          </span>
+          <Button asChild size="sm">
+            <Link href={`/entreprises/${entreprise.id}/onboarding`}>Continuer la configuration</Link>
+          </Button>
+        </div>
+      ) : null}
 
       <EntrepriseDetailTabs entreprise={entreprise} />
     </div>
