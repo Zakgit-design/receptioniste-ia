@@ -10,6 +10,7 @@
 
 import { prisma } from "@/lib/prisma";
 import type { EntrepriseModel, EtablissementModel } from "@/generated/prisma/models";
+import { listOrganizationMembers, type MembreOrganisation } from "@/auth";
 
 export type EntrepriseListeItem = Pick<
   EntrepriseModel,
@@ -126,6 +127,10 @@ export interface EntrepriseDetail {
   etablissements: EtablissementListeItem[];
   /** Conservé pour compatibilité d'affichage — toujours `false` désormais. */
   estDemo: boolean;
+  /** `null` si l'entreprise n'a pas (encore) d'organisation Clerk reliée — onglet Utilisateurs vide dans ce cas. */
+  clerkOrganizationId: string | null;
+  /** Toujours vide côté getRentabiliteEntreprises (pas besoin d'appeler Clerk pour les Finances) — peuplé uniquement par getEntrepriseDetail. */
+  membres: MembreOrganisation[];
 }
 
 async function versEntrepriseDetail(
@@ -148,6 +153,8 @@ async function versEntrepriseDetail(
     statutLabel: statutLabels[entreprise.statut],
     planLabel: abonnement?.nomPlan ?? "Aucun abonnement",
     estDemo: false,
+    clerkOrganizationId: entreprise.clerkOrganizationId,
+    membres: [],
     rentabilite: {
       margeChf,
       note: abonnement
@@ -179,7 +186,17 @@ export async function getEntrepriseDetail(id: string): Promise<EntrepriseDetail 
     where: { id },
     include: { etablissements: { include: { agentsIA: { select: { numeroTwilio: true, statut: true } } } } },
   });
-  return entreprise ? versEntrepriseDetail(entreprise) : null;
+  if (!entreprise) return null;
+
+  const detail = await versEntrepriseDetail(entreprise);
+  // Membres réels (onglet Utilisateurs, voir entreprise-detail-tabs.tsx) —
+  // pas peuplé dans versEntrepriseDetail : getRentabiliteEntreprises (Finances)
+  // partage cette fonction pour toutes les entreprises et n'a pas besoin
+  // d'appeler l'API Clerk pour chacune.
+  if (detail.clerkOrganizationId) {
+    detail.membres = await listOrganizationMembers(detail.clerkOrganizationId);
+  }
+  return detail;
 }
 
 export interface RentabiliteEntrepriseAffichee {

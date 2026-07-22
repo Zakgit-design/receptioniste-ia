@@ -3,8 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { StatutEntreprise } from "@/generated/prisma/enums";
-import { createOrganizationForEntreprise, isClerkConfigured } from "@/auth";
+import { StatutEntreprise, type RoleUtilisateur } from "@/generated/prisma/enums";
+import { createOrganizationForEntreprise, isClerkConfigured, getCurrentUser, inviteUser } from "@/auth";
 
 // Server action pour le formulaire "+ Nouvelle entreprise" (voir
 // docs/roadmap.md, Sprint 5, tâche 59). Champs minimaux du modèle
@@ -101,4 +101,60 @@ export async function supprimerEntreprise(
 
   revalidatePath("/entreprises");
   redirect("/entreprises");
+}
+
+export interface InviterMembreEntrepriseState {
+  error: string | null;
+}
+
+const ROLES_ORGANISATION: RoleUtilisateur[] = [
+  "proprietaire",
+  "administrateur",
+  "responsable_etablissement",
+  "membre",
+];
+
+/**
+ * Invite un membre dans l'organisation Clerk d'une entreprise précise, depuis
+ * l'onglet "Utilisateurs" de sa fiche détail (Dashboard Administrateur) — ex.
+ * donner à Ms Savané l'accès à son propre Dashboard Client une fois créée.
+ * Défense en profondeur : revérifie que l'appelant est admin_plateforme,
+ * jamais supposé depuis la seule navigation (même principe que
+ * (dashboard)/utilisateurs/actions.ts).
+ */
+export async function inviterMembreEntreprise(
+  entrepriseId: string,
+  _prevState: InviterMembreEntrepriseState,
+  formData: FormData
+): Promise<InviterMembreEntrepriseState> {
+  const user = await getCurrentUser();
+  if (!user || user.role !== "admin_plateforme") {
+    return { error: "Action réservée aux administrateurs plateforme." };
+  }
+
+  const email = formData.get("email");
+  const role = formData.get("role");
+  if (typeof email !== "string" || !email) {
+    return { error: "Email requis." };
+  }
+  if (typeof role !== "string" || !ROLES_ORGANISATION.includes(role as RoleUtilisateur)) {
+    return { error: "Rôle invalide." };
+  }
+
+  const entreprise = await prisma.entreprise.findUnique({
+    where: { id: entrepriseId },
+    select: { clerkOrganizationId: true },
+  });
+  if (!entreprise?.clerkOrganizationId) {
+    return { error: "Cette entreprise n'est pas encore reliée à une organisation Clerk." };
+  }
+
+  try {
+    await inviteUser(email, entreprise.clerkOrganizationId, role as RoleUtilisateur);
+  } catch {
+    return { error: "Échec de l'envoi de l'invitation — vérifie l'adresse email." };
+  }
+
+  revalidatePath(`/entreprises/${entrepriseId}`);
+  return { error: null };
 }

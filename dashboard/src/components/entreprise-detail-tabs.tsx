@@ -4,14 +4,21 @@ import { cn } from "@/lib/utils";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { PlaceholderPanel } from "@/components/placeholder-panel";
 import { EtablissementsTable } from "@/components/etablissements-table";
+import { StatutBadge } from "@/components/statut-badge";
+import { InviterMembreEntrepriseDialog } from "@/components/inviter-membre-entreprise-dialog";
+import { libelleRoleUtilisateur } from "@/auth/roles";
 import type { EntrepriseDetail } from "@/app/(dashboard)/entreprises/data";
+
+const thClass =
+  "px-4 py-[9px] text-left text-[10.5px] font-bold tracking-[0.05em] text-text-muted uppercase whitespace-nowrap";
 
 // Arborescence des onglets — docs/sprint5-conception.md, section 3 : "Vue
 // d'ensemble" actif par défaut, "Établissements" développé dans cette tâche,
-// les 4 autres onglets restent des panneaux "à concevoir en détail à
+// "Utilisateurs" branché sur Clerk le 2026-07-22 (voir docs/sprint-log.md).
+// Les 3 onglets restants demeurent des panneaux "à concevoir en détail à
 // l'implémentation" (hors périmètre ici).
 export function EntrepriseDetailTabs({ entreprise }: { entreprise: EntrepriseDetail }) {
-  const { nom, rentabilite, activite, etablissements } = entreprise;
+  const { id, nom, rentabilite, activite, etablissements, membres, clerkOrganizationId } = entreprise;
   const margePositive = rentabilite.margeChf >= 0;
 
   return (
@@ -108,10 +115,60 @@ export function EntrepriseDetailTabs({ entreprise }: { entreprise: EntrepriseDet
       </TabsContent>
 
       <TabsContent value="utilisateurs">
-        <PlaceholderPanel
-          title="Utilisateurs"
-          description={`Membres de l'organisation Clerk « ${nom} », rôles, invitations.`}
-        />
+        {clerkOrganizationId ? (
+          <div>
+            <div className="mb-3 flex items-center justify-between">
+              <span className="text-[11.5px] font-semibold text-text-muted">
+                Organisation Clerk « {nom} »
+              </span>
+              <InviterMembreEntrepriseDialog entrepriseId={id} />
+            </div>
+            {membres.length > 0 ? (
+              <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-[var(--shadow-panel)]">
+                <table className="w-full border-collapse text-[12.5px]">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className={thClass}>Nom</th>
+                      <th className={thClass}>Email</th>
+                      <th className={thClass}>Rôle</th>
+                      <th className={thClass}>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {membres.map((membre) => (
+                      <tr key={membre.email} className="border-b border-border last:border-b-0">
+                        <td className="px-4 py-[11px] font-bold whitespace-nowrap text-text">
+                          {membre.nom}
+                        </td>
+                        <td className="px-4 py-[11px] font-mono whitespace-nowrap text-text-secondary">
+                          {membre.email}
+                        </td>
+                        <td className="px-4 py-[11px] whitespace-nowrap text-text-secondary">
+                          {libelleRoleUtilisateur[membre.role]}
+                        </td>
+                        <td className="px-4 py-[11px] whitespace-nowrap">
+                          <StatutBadge tone={membre.statut === "actif" ? "good" : "neutral"}>
+                            {membre.statut === "actif" ? "Actif" : "Invitation en attente"}
+                          </StatutBadge>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <PlaceholderPanel
+                title="Aucun utilisateur pour l'instant"
+                description={`Personne n'a encore accès au Dashboard Client de ${nom} — invite quelqu'un ci-dessus pour lui donner accès.`}
+              />
+            )}
+          </div>
+        ) : (
+          <PlaceholderPanel
+            title="Organisation Clerk manquante"
+            description={`${nom} n'est pas encore reliée à une organisation Clerk — impossible d'inviter un utilisateur pour l'instant.`}
+          />
+        )}
       </TabsContent>
     </Tabs>
   );
