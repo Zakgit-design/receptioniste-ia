@@ -75,8 +75,9 @@ export async function getEtablissementsClient(
       // suffit pour le numéro/l'état de l'assistant (voir modèle `AgentIA`,
       // docs/architecture.md). Le compte d'appels, lui, se lit directement sur
       // `Appel.etablissementId` depuis la tâche #73 — pas via l'agent, qui
-      // reste rattaché arbitrairement à un seul salon (Cornavin) tant que
-      // Barber Concept partage un seul numéro pour ses 6 salons.
+      // reste rattaché à un seul salon pilote (Jonction, voir Sprint 7,
+      // docs/roadmap.md) tant que Barber Concept partage un seul numéro pour
+      // ses 6 salons.
       const agent = etablissement.agentsIA[0] ?? null;
       const appelsSeptJours = await prisma.appel.count({
         where: { etablissementId: etablissement.id, debut: { gte: depuis } },
